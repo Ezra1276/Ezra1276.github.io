@@ -45,6 +45,7 @@
     button {
       margin-top: 10px;
       padding: 8px 12px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -73,25 +74,24 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-  
+  // ✅ Your Firebase configuration with databaseURL
   const firebaseConfig = {
     apiKey: "AIzaSyBEWfWRM6MohRwkGe_tGjCg9D_xwpRE-XU",
     authDomain: "flood-closures.firebaseapp.com",
+    databaseURL: "https://flood-closures-default-rtdb.firebaseio.com", // 🔥 important
     projectId: "flood-closures",
     storageBucket: "flood-closures.firebasestorage.app",
     messagingSenderId: "258849178608",
     appId: "1:258849178608:web:367e2bd0cc96103b845335",
-    measurementId: "G-T8SRBWLYLT",
-    databaseURL: "https://flood-closures-default-rtdb.firebaseio.com/" 
+    measurementId: "G-T8SRBWLYLT"
   };
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-
   const tableBody = document.getElementById('tableBody');
   const addRowBtn = document.getElementById('addRowBtn');
 
-  
+  // Function to create a row
   function createRow(rowId, rowData = {}) {
     const tr = document.createElement('tr');
 
@@ -140,7 +140,7 @@
       setTimeout(() => submitBtn.textContent = "Submit", 2000);
     };
 
-   
+    // Add each cell to the row
     [townInput, roadInput, [image, imageInput], timeInput, reporterInput, submitBtn].forEach(content => {
       const td = document.createElement('td');
       if (Array.isArray(content)) {
@@ -154,17 +154,15 @@
     tableBody.appendChild(tr);
   }
 
- 
-  addRowBtn.addEventListener('click', () => {
-    const newRowRef = db.ref('rows').push();
-    createRow(newRowRef.key);
+  // 🔁 Real-time listener for newly added rows
+  db.ref('rows').on('child_added', snapshot => {
+    createRow(snapshot.key, snapshot.val());
   });
 
- 
-  db.ref('rows').once('value', snapshot => {
-    snapshot.forEach(child => {
-      createRow(child.key, child.val());
-    });
+  // ➕ Add new row to Firebase
+  addRowBtn.addEventListener('click', () => {
+    const newRowRef = db.ref('rows').push();
+    createRow(newRowRef.key); // creates the row locally
   });
 </script>
 
