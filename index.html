@@ -40,11 +40,21 @@
       padding: 8px 12px;
       cursor: pointer;
     }
+    .note {
+      font-size: 0.9em;
+      margin-bottom: 15px;
+      color: #555;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
 <h1>Current Road Closures</h1>
+
+<div class="note">
+  To add an image, upload it to a free image host (like <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer">Imgur</a>) and paste the image URL below.
+</div>
 
 <table border="1">
   <thead>
@@ -65,16 +75,14 @@
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <script>
-  // Your Firebase config with databaseURL and storageBucket
   const firebaseConfig = {
     apiKey: "AIzaSyBEWfWRM6MohRwkGe_tGjCg9D_xwpRE-XU",
     authDomain: "flood-closures.firebaseapp.com",
     databaseURL: "https://flood-closures-default-rtdb.firebaseio.com",
     projectId: "flood-closures",
-    storageBucket: "flood-closures.appspot.com", // make sure this matches your Firebase Storage bucket
+    storageBucket: "flood-closures.firebasestorage.app",
     messagingSenderId: "258849178608",
     appId: "1:258849178608:web:367e2bd0cc96103b845335",
     measurementId: "G-T8SRBWLYLT"
@@ -82,7 +90,6 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-  const storage = firebase.storage();
 
   const tableBody = document.getElementById('tableBody');
   const addRowBtn = document.getElementById('addRowBtn');
@@ -90,92 +97,52 @@
   function createRow(rowId, rowData = {}) {
     const tr = document.createElement('tr');
 
-    // Town input
     const townInput = document.createElement('input');
     townInput.type = 'text';
     townInput.placeholder = 'Enter town name';
     townInput.value = rowData.town || '';
 
-    // Road input
     const roadInput = document.createElement('input');
     roadInput.type = 'text';
     roadInput.placeholder = 'Enter road name';
     roadInput.value = rowData.road || '';
 
-    // Image preview
     const image = document.createElement('img');
     image.src = rowData.imageUrl || 'https://via.placeholder.com/150';
 
-    // File input (for upload)
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = "image/*";
-
-    // When user selects a file, show a preview immediately
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (file) {
-        image.src = URL.createObjectURL(file);
-      } else {
-        image.src = rowData.imageUrl || 'https://via.placeholder.com/150';
-      }
+    const imageInput = document.createElement('input');
+    imageInput.type = 'text';
+    imageInput.placeholder = 'Image URL';
+    imageInput.value = rowData.imageUrl || '';
+    imageInput.addEventListener('input', () => {
+      image.src = imageInput.value || 'https://via.placeholder.com/150';
     });
 
-    // Time input
     const timeInput = document.createElement('input');
     timeInput.type = 'datetime-local';
     timeInput.value = rowData.time || '';
 
-    // Reporter input
     const reporterInput = document.createElement('input');
     reporterInput.type = 'text';
     reporterInput.placeholder = 'Enter name';
     reporterInput.value = rowData.reporter || '';
 
-    // Submit button
     const submitBtn = document.createElement('button');
     submitBtn.textContent = 'Submit';
-
-    submitBtn.onclick = async () => {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Saving...";
-
-      try {
-        let imageUrl = rowData.imageUrl || '';
-
-        // If a new file was selected, upload it
-        if (fileInput.files.length > 0) {
-          const file = fileInput.files[0];
-          const storageRef = storage.ref();
-          const fileRef = storageRef.child('images/' + rowId + '/' + file.name);
-          await fileRef.put(file);
-          imageUrl = await fileRef.getDownloadURL();
-        }
-
-        const newData = {
-          town: townInput.value,
-          road: roadInput.value,
-          imageUrl,
-          time: timeInput.value,
-          reporter: reporterInput.value
-        };
-
-        await db.ref('rows/' + rowId).set(newData);
-
-        submitBtn.textContent = "Saved!";
-        setTimeout(() => {
-          submitBtn.textContent = "Submit";
-          submitBtn.disabled = false;
-        }, 2000);
-      } catch (error) {
-        alert("Error saving data: " + error.message);
-        submitBtn.textContent = "Submit";
-        submitBtn.disabled = false;
-      }
+    submitBtn.onclick = () => {
+      const newData = {
+        town: townInput.value,
+        road: roadInput.value,
+        imageUrl: imageInput.value,
+        time: timeInput.value,
+        reporter: reporterInput.value
+      };
+      db.ref('rows/' + rowId).set(newData);
+      submitBtn.textContent = "Saved!";
+      setTimeout(() => submitBtn.textContent = "Submit", 2000);
     };
 
-    // Append inputs to table cells
-    [townInput, roadInput, [image, fileInput], timeInput, reporterInput, submitBtn].forEach(content => {
+    [townInput, roadInput, [image, imageInput], timeInput, reporterInput, submitBtn].forEach(content => {
       const td = document.createElement('td');
       if (Array.isArray(content)) {
         content.forEach(el => td.appendChild(el));
@@ -188,7 +155,6 @@
     tableBody.appendChild(tr);
   }
 
-  // Real-time listener for new rows
   db.ref('rows').on('child_added', snapshot => {
     createRow(snapshot.key, snapshot.val());
   });
