@@ -11,18 +11,15 @@
       padding: 20px;
       margin: 0;
     }
-
     h1 {
       text-align: center;
     }
-
     #map {
       height: 400px;
       width: 100%;
       border: 2px solid #ccc;
       border-radius: 8px;
     }
-
     #mapContainer {
       display: none;
       position: fixed;
@@ -32,20 +29,30 @@
       height: 100vh;
       z-index: 1000;
       background: white;
+      display: flex;
+      flex-direction: column;
     }
-
     #mapContainer #map {
-      height: 100%;
+      flex-grow: 1;
       width: 100%;
     }
-
+    #mapControls {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    #mapControls button {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 16px;
+    }
     input[type="text"], input[type="datetime-local"], input[type="file"] {
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
       margin-top: 4px;
     }
-
     #searchTown, #searchRoad {
       font-size: 16px;
       padding: 10px;
@@ -53,59 +60,48 @@
       width: 100%;
       box-sizing: border-box;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
-
     th, td {
       padding: 10px;
       text-align: left;
       vertical-align: top;
     }
-
     th {
       background-color: #f2f2f2;
     }
-
     img {
       max-width: 150px;
       height: auto;
       display: block;
       margin-bottom: 8px;
     }
-
     button {
       margin-top: 10px;
       padding: 8px 12px;
       cursor: pointer;
     }
-
     .error {
       border: 2px solid red;
     }
-
     @media (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block;
       }
-
       tr {
         margin-bottom: 20px;
         border-bottom: 2px solid #ccc;
       }
-
       th {
         display: none;
       }
-
       td {
         position: relative;
         padding-left: 50%;
       }
-
       td::before {
         content: attr(data-label);
         position: absolute;
@@ -113,7 +109,6 @@
         font-weight: bold;
         white-space: nowrap;
       }
-
       img {
         max-width: 100%;
       }
@@ -130,6 +125,9 @@
 </div>
 
 <div id="mapContainer">
+  <div id="mapControls">
+    <button id="mapBackToSiteBtn" style="display:none;">⬅ Back to Site</button>
+  </div>
   <div id="map"></div>
 </div>
 
@@ -180,13 +178,23 @@
   const backBtn = document.getElementById('backBtn');
   const mapContainer = document.getElementById('mapContainer');
   const contentContainer = document.getElementById('contentContainer');
+  const mapBackToSiteBtn = document.getElementById('mapBackToSiteBtn');
 
-  // Leaflet map centered & restricted to Vermont boundaries
+  // Vermont bounds approx
+  const vermontBounds = [
+    [42.5, -74.0], // SW
+    [45.3, -71.0]  // NE
+  ];
+
+  // World view coords & zoom (to reset map)
+  const worldView = {
+    center: [20, 0],
+    zoom: 2
+  };
+
+  // Initialize map centered on Vermont with zoom and bounds restrictions
   const map = L.map('map', {
-    maxBounds: [
-      [42.5, -74.0], // SW corner lat,lng
-      [45.3, -71.0]  // NE corner lat,lng
-    ],
+    maxBounds: vermontBounds,
     maxBoundsViscosity: 1.0,
     minZoom: 7,
     maxZoom: 18,
@@ -195,8 +203,7 @@
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  const geocache = new Map();
-
+  // Helper: red marker icon
   function redDot() {
     return L.icon({
       iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
@@ -205,13 +212,15 @@
     });
   }
 
+  // Cache geocodes to avoid repeat requests
+  const geocache = new Map();
+
   async function geocodeAndMark(town, road) {
     const query = `${road}, ${town}, Vermont`;
     if (geocache.has(query)) {
       L.marker(geocache.get(query), { icon: redDot() }).addTo(map);
       return;
     }
-
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
       const data = await res.json();
@@ -225,6 +234,7 @@
     }
   }
 
+  // ImgBB upload helper
   async function uploadToImgBB(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -242,12 +252,14 @@
     });
   }
 
+  // Get current local datetime in ISO format for datetime-local input
   function getCurrentDatetimeLocal() {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   }
 
+  // Create table row UI
   function createRow(rowId, rowData = {}) {
     if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
 
@@ -293,7 +305,6 @@
         alert("Please fill out all required fields.");
         return;
       }
-
       submitBtn.disabled = true;
       submitBtn.textContent = 'Saving...';
 
@@ -341,17 +352,20 @@
     tableBody.appendChild(tr);
   }
 
+  // Firebase child_added handler
   db.ref('rows').on('child_added', snapshot => {
     const data = snapshot.val();
     createRow(snapshot.key, data);
     if (data.town && data.road) geocodeAndMark(data.town, data.road);
   });
 
+  // Add new row button
   addRowBtn.onclick = () => {
     const newRef = db.ref('rows').push();
     createRow(newRef.key);
   };
 
+  // Search filtering
   document.getElementById('searchTown').addEventListener('input', filterRows);
   document.getElementById('searchRoad').addEventListener('input', filterRows);
 
@@ -365,20 +379,47 @@
     });
   }
 
+  // Show map container, hide content
   openMapBtn.onclick = () => {
-    mapContainer.style.display = 'block';
+    mapContainer.style.display = 'flex';
     contentContainer.style.display = 'none';
-    backBtn.style.display = 'inline-block';
+    backBtn.style.display = 'none'; // hide old back button
     openMapBtn.style.display = 'none';
+    mapBackToSiteBtn.style.display = 'none'; // hidden initially
     setTimeout(() => map.invalidateSize(), 200);
+    map.setView([44.0, -72.7], 8);
+    map.setMaxBounds(vermontBounds);
+    map.setMinZoom(7);
   };
 
-  backBtn.onclick = () => {
+  // Back to site button in map header (shown only in world view)
+  mapBackToSiteBtn.onclick = () => {
     mapContainer.style.display = 'none';
     contentContainer.style.display = 'block';
-    backBtn.style.display = 'none';
     openMapBtn.style.display = 'inline-block';
+    mapBackToSiteBtn.style.display = 'none';
   };
+
+  // Listen for zoom end to detect zoom out past Vermont minZoom
+  map.on('zoomend', () => {
+    if (map.getZoom() < 7) {
+      // User zoomed out beyond Vermont minimum zoom,
+      // reset map to world view and remove bounds restriction
+      map.setView(worldView.center, worldView.zoom);
+      map.setMaxBounds(null);
+      map.setMinZoom(2);
+      mapBackToSiteBtn.style.display = 'inline-block';
+    } else {
+      // Restore Vermont bounds and minZoom when zoomed in
+      map.setMaxBounds(vermontBounds);
+      map.setMinZoom(7);
+      mapBackToSiteBtn.style.display = 'none';
+    }
+  });
+
+  // Old back button hides content, so hide it always
+  backBtn.onclick = () => {}; // disabled
+
 </script>
 </body>
 </html>
