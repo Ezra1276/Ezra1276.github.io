@@ -3,19 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <title>Flood Closures with ImgBB Upload</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
     }
+
     h1 {
       text-align: center;
     }
-    input[type="text"], input[type="datetime-local"] {
+
+    input[type="text"], input[type="datetime-local"], input[type="file"] {
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
+      margin-top: 4px;
     }
+
     #searchTown, #searchRoad {
       font-size: 16px;
       padding: 10px;
@@ -23,29 +28,70 @@
       width: 100%;
       box-sizing: border-box;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
+
     th, td {
       padding: 10px;
       text-align: left;
       vertical-align: top;
     }
+
     th {
       background-color: #f2f2f2;
     }
+
     img {
       max-width: 150px;
       height: auto;
       display: block;
       margin-bottom: 8px;
     }
+
     button {
       margin-top: 10px;
       padding: 8px 12px;
       cursor: pointer;
+    }
+
+    .error {
+      border: 2px solid red;
+    }
+
+    @media (max-width: 768px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+
+      tr {
+        margin-bottom: 20px;
+        border-bottom: 2px solid #ccc;
+      }
+
+      th {
+        display: none;
+      }
+
+      td {
+        position: relative;
+        padding-left: 50%;
+      }
+
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      img {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -72,7 +118,7 @@
 
 <button id="addRowBtn">Add New Row</button>
 
-<!-- Firebase SDKs -->
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -95,31 +141,30 @@
 
   const tableBody = document.getElementById('tableBody');
   const addRowBtn = document.getElementById('addRowBtn');
-
   const existingRows = new Set();
 
   async function uploadToImgBB(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = function() {
+      reader.onload = function () {
         const base64 = reader.result.split(',')[1];
         fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
           method: 'POST',
           body: new URLSearchParams({ image: base64 })
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            resolve(data.data.url);
-          } else {
-            reject(new Error('ImgBB upload failed'));
-          }
-        })
-        .catch(err => reject(err));
+          .then(res => res.json())
+          .then(data => data.success ? resolve(data.data.url) : reject(new Error('ImgBB upload failed')))
+          .catch(reject);
       };
       reader.onerror = () => reject(new Error('File reading error'));
       reader.readAsDataURL(file);
     });
+  }
+
+  function getCurrentDatetimeLocal() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
   }
 
   function createRow(rowId, rowData = {}) {
@@ -145,19 +190,14 @@
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
-      if (file) {
-        image.src = URL.createObjectURL(file);
-      } else {
-        image.src = rowData.imageUrl || 'https://via.placeholder.com/150';
-      }
+      image.src = file ? URL.createObjectURL(file) : rowData.imageUrl || 'https://via.placeholder.com/150';
     });
 
     const timeInput = document.createElement('input');
     timeInput.type = 'datetime-local';
-    timeInput.value = rowData.time || '';
+    timeInput.value = rowData.time || getCurrentDatetimeLocal();
 
     const reporterInput = document.createElement('input');
     reporterInput.type = 'text';
@@ -168,13 +208,21 @@
     submitBtn.textContent = 'Submit';
 
     submitBtn.onclick = async () => {
-      if (
-        !townInput.value.trim() ||
-        !roadInput.value.trim() ||
-        !timeInput.value.trim() ||
-        !reporterInput.value.trim()
-      ) {
-        alert('Please fill out all fields (image optional).');
+     
+      [townInput, roadInput, timeInput, reporterInput].forEach(input => input.classList.remove('error'));
+
+      const requiredFields = [townInput, roadInput, timeInput, reporterInput];
+      let allFilled = true;
+
+      requiredFields.forEach(input => {
+        if (!input.value.trim()) {
+          input.classList.add('error');
+          allFilled = false;
+        }
+      });
+
+      if (!allFilled) {
+        alert('Please fill out all required fields (image optional).');
         return;
       }
 
@@ -183,10 +231,8 @@
 
       try {
         let imageUrl = rowData.imageUrl || '';
-
         if (fileInput.files.length > 0) {
-          const file = fileInput.files[0];
-          imageUrl = await uploadToImgBB(file);
+          imageUrl = await uploadToImgBB(fileInput.files[0]);
         }
 
         const newData = {
@@ -198,7 +244,6 @@
         };
 
         await db.ref('rows/' + rowId).set(newData);
-
         submitBtn.textContent = 'Saved!';
         setTimeout(() => {
           submitBtn.textContent = 'Submit';
@@ -230,13 +275,11 @@
     actionTd.appendChild(submitBtn);
     actionTd.appendChild(deleteBtn);
 
-    [townInput, roadInput, [image, fileInput], timeInput, reporterInput].forEach(content => {
+    [[townInput, 'Town Name'], [roadInput, 'Road Name'], [[image, fileInput], 'Image'], [timeInput, 'Time'], [reporterInput, 'Reporter']].forEach(([el, label]) => {
       const td = document.createElement('td');
-      if (Array.isArray(content)) {
-        content.forEach(el => td.appendChild(el));
-      } else {
-        td.appendChild(content);
-      }
+      td.setAttribute('data-label', label);
+      if (Array.isArray(el)) el.forEach(e => td.appendChild(e));
+      else td.appendChild(el);
       tr.appendChild(td);
     });
 
@@ -249,14 +292,12 @@
   });
 
   db.ref('rows').on('child_removed', snapshot => {
-    const rows = Array.from(tableBody.children);
-    for (const row of rows) {
+    [...tableBody.children].forEach(row => {
       if (row.dataset.firebaseKey === snapshot.key) {
         row.remove();
         existingRows.delete(snapshot.key);
-        break;
       }
-    }
+    });
   });
 
   addRowBtn.addEventListener('click', () => {
@@ -273,11 +314,7 @@
       const inputs = row.querySelectorAll('td input[type="text"]');
       const town = inputs[0]?.value.toLowerCase() || '';
       const road = inputs[1]?.value.toLowerCase() || '';
-
-      const townMatch = town.includes(townFilter);
-      const roadMatch = road.includes(roadFilter);
-
-      row.style.display = (townMatch && roadMatch) ? '' : 'none';
+      row.style.display = (town.includes(townFilter) && road.includes(roadFilter)) ? '' : 'none';
     });
   }
 
