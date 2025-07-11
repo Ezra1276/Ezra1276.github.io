@@ -181,7 +181,18 @@
   const mapContainer = document.getElementById('mapContainer');
   const contentContainer = document.getElementById('contentContainer');
 
-  const map = L.map('map').setView([44.0, -72.7], 8);
+  // Leaflet map centered & restricted to Vermont boundaries
+  const map = L.map('map', {
+    maxBounds: [
+      [42.5, -74.0], // SW corner lat,lng
+      [45.3, -71.0]  // NE corner lat,lng
+    ],
+    maxBoundsViscosity: 1.0,
+    minZoom: 7,
+    maxZoom: 18,
+    scrollWheelZoom: false
+  }).setView([44.0, -72.7], 8);
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
   const geocache = new Map();
@@ -201,12 +212,16 @@
       return;
     }
 
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    if (data.length > 0) {
-      const latLng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      geocache.set(query, latLng);
-      L.marker(latLng, { icon: redDot() }).addTo(map);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        const latLng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        geocache.set(query, latLng);
+        L.marker(latLng, { icon: redDot() }).addTo(map);
+      }
+    } catch (e) {
+      console.warn("Geocoding failed for:", query);
     }
   }
 
@@ -316,7 +331,7 @@
     actionTd.appendChild(submitBtn);
     actionTd.appendChild(deleteBtn);
 
-    [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput]].forEach((elements, index) => {
+    [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput]].forEach(elements => {
       const td = document.createElement('td');
       elements.forEach(el => td.appendChild(el));
       tr.appendChild(td);
