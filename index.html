@@ -11,10 +11,22 @@
     h1 {
       text-align: center;
     }
+    input[type="text"], input[type="datetime-local"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    #searchInput {
+      font-size: 16px;
+      padding: 10px;
+      margin-bottom: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 10px;
     }
     th, td {
       padding: 10px;
@@ -23,11 +35,6 @@
     }
     th {
       background-color: #f2f2f2;
-    }
-    input[type="text"], input[type="datetime-local"] {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
     }
     img {
       max-width: 150px;
@@ -45,6 +52,8 @@
 <body>
 
 <h1>Current Road Closures</h1>
+
+<input type="text" id="searchInput" placeholder="Search by town name..." />
 
 <table border="1">
   <thead>
@@ -67,7 +76,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-  // Firebase config - use your own!
   const firebaseConfig = {
     apiKey: "AIzaSyBEWfWRM6MohRwkGe_tGjCg9D_xwpRE-XU",
     authDomain: "flood-closures.firebaseapp.com",
@@ -82,35 +90,31 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  const IMGBB_API_KEY = 'dbc72d2ce36090fd55be72eac5cc5147'; // Your ImgBB API key
+  const IMGBB_API_KEY = 'dbc72d2ce36090fd55be72eac5cc5147';
 
   const tableBody = document.getElementById('tableBody');
   const addRowBtn = document.getElementById('addRowBtn');
 
-  // Track rows that already exist in the UI to prevent duplicates
   const existingRows = new Set();
 
-  // Upload image to ImgBB and get URL
   async function uploadToImgBB(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = function() {
-        const base64 = reader.result.split(',')[1]; // Remove data:*/*;base64,
+        const base64 = reader.result.split(',')[1];
         fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
           method: 'POST',
-          body: new URLSearchParams({
-            image: base64
-          })
+          body: new URLSearchParams({ image: base64 })
         })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              resolve(data.data.url);
-            } else {
-              reject(new Error('ImgBB upload failed'));
-            }
-          })
-          .catch(err => reject(err));
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            resolve(data.data.url);
+          } else {
+            reject(new Error('ImgBB upload failed'));
+          }
+        })
+        .catch(err => reject(err));
       };
       reader.onerror = () => reject(new Error('File reading error'));
       reader.readAsDataURL(file);
@@ -118,7 +122,7 @@
   }
 
   function createRow(rowId, rowData = {}) {
-    if (existingRows.has(rowId)) return; // Prevent duplicate row creation
+    if (existingRows.has(rowId)) return;
     existingRows.add(rowId);
 
     const tr = document.createElement('tr');
@@ -182,7 +186,6 @@
           reporter: reporterInput.value
         };
 
-        // Only update Firebase, do NOT create a new row here
         await db.ref('rows/' + rowId).set(newData);
 
         submitBtn.textContent = 'Saved!';
@@ -227,16 +230,13 @@
     });
 
     tr.appendChild(actionTd);
-
     tableBody.appendChild(tr);
   }
 
-  // Listen for new rows added to Firebase, create UI rows if not exists
   db.ref('rows').on('child_added', snapshot => {
     createRow(snapshot.key, snapshot.val());
   });
 
-  // Listen for removed rows to update UI and the Set
   db.ref('rows').on('child_removed', snapshot => {
     const rows = Array.from(tableBody.children);
     for (const row of rows) {
@@ -251,6 +251,20 @@
   addRowBtn.addEventListener('click', () => {
     const newRowRef = db.ref('rows').push();
     createRow(newRowRef.key);
+  });
+
+  // Search filtering
+  document.getElementById('searchInput').addEventListener('input', function () {
+    const filter = this.value.toLowerCase();
+    const rows = tableBody.getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+      const townInput = row.querySelector('td input[type="text"]');
+      if (townInput) {
+        const townName = townInput.value.toLowerCase();
+        row.style.display = townName.includes(filter) ? '' : 'none';
+      }
+    });
   });
 </script>
 
