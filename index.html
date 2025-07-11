@@ -238,8 +238,7 @@
   async function geocodeAndMark(town, road) {
     const query = `${road}, ${town}, Vermont`;
     if (geocache.has(query)) {
-      L.marker(geocache.get(query), { icon: redDot() }).addTo(map);
-      return;
+      return; // Marker already exists
     }
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
@@ -296,6 +295,37 @@
     roadInput.type = 'text';
     roadInput.value = rowData.road || '';
 
+    // Create map button, hidden initially
+    const mapBtn = document.createElement('button');
+    mapBtn.textContent = '🗺';
+    mapBtn.title = 'Show on Map';
+    mapBtn.style.marginLeft = '5px';
+    mapBtn.style.fontSize = '18px';
+    mapBtn.style.padding = '4px 8px';
+    mapBtn.style.cursor = 'pointer';
+    mapBtn.style.display = 'none';
+
+    mapBtn.onclick = () => {
+      const query = `${roadInput.value}, ${townInput.value}, Vermont`;
+      const latLng = geocache.get(query);
+      if (latLng) {
+        document.getElementById('mapContainer').style.display = 'flex';
+        document.getElementById('contentContainer').style.display = 'none';
+        setTimeout(() => {
+          map.invalidateSize();
+          map.setView(latLng, 14, { animate: true });
+        }, 200);
+      } else {
+        alert('Location not found on map yet.');
+      }
+    };
+
+    const roadContainer = document.createElement('div');
+    roadContainer.style.display = 'flex';
+    roadContainer.style.alignItems = 'center';
+    roadContainer.appendChild(roadInput);
+    roadContainer.appendChild(mapBtn);
+
     const image = document.createElement('img');
     image.src = rowData.imageUrl || 'https://via.placeholder.com/150';
 
@@ -311,7 +341,6 @@
     timeInput.type = 'datetime-local';
     timeInput.value = rowData.time || getCurrentDatetimeLocal();
 
-    // Add a small hint below time input
     const timeHint = document.createElement('small');
     timeHint.style.color = 'gray';
     timeHint.textContent = '(defaults to now)';
@@ -325,7 +354,8 @@
     notesInput.value = rowData.notes || '';
 
     const submitBtn = document.createElement('button');
-    submitBtn.textContent = 'Submit';
+    submitBtn.textContent = rowData.town && rowData.road ? 'Update' : 'Submit';
+
     submitBtn.onclick = async () => {
       [townInput, roadInput, timeInput, reporterInput].forEach(el => el.classList.remove('error'));
       const requiredFields = [townInput, roadInput, timeInput, reporterInput];
@@ -344,13 +374,12 @@
           imageUrl = await uploadToImgBB(fileInput.files[0]);
         } catch (e) {
           alert("Image upload failed.");
-          submitBtn.textContent = 'Submit';
+          submitBtn.textContent = rowData.town && rowData.road ? 'Update' : 'Submit';
           submitBtn.disabled = false;
           return;
         }
       }
 
-      // Sanitize inputs before saving
       const newData = {
         town: sanitize(townInput.value),
         road: sanitize(roadInput.value),
@@ -363,11 +392,13 @@
       await db.ref('rows/' + rowId).set(newData);
       await geocodeAndMark(newData.town, newData.road);
 
-      submitBtn.textContent = 'Saved!';
-      setTimeout(() => {
-        submitBtn.textContent = 'Submit';
-        submitBtn.disabled = false;
-      }, 2000);
+      const query = `${newData.road}, ${newData.town}, Vermont`;
+      if (geocache.has(query)) {
+        mapBtn.style.display = 'inline-block';
+      }
+
+      submitBtn.textContent = 'Update';
+      submitBtn.disabled = false;
     };
 
     const deleteBtn = document.createElement('button');
@@ -379,7 +410,6 @@
       }
     };
 
-    // Append all cells with data-label for mobile
     function appendCell(parent, label, ...elements) {
       const td = document.createElement('td');
       td.setAttribute('data-label', label);
@@ -388,10 +418,9 @@
     }
 
     appendCell(tr, 'Town Name', townInput);
-    appendCell(tr, 'Road Name', roadInput);
+    appendCell(tr, 'Road Name', roadContainer);
     appendCell(tr, 'Image', image, fileInput);
-    
-    // Time input and hint together
+
     const timeWrapper = document.createElement('div');
     timeWrapper.appendChild(timeInput);
     timeWrapper.appendChild(timeHint);
@@ -407,6 +436,11 @@
     tr.appendChild(actionTd);
 
     tableBody.appendChild(tr);
+
+    const query = `${roadInput.value}, ${townInput.value}, Vermont`;
+    if (rowData.town && rowData.road && geocache.has(query)) {
+      mapBtn.style.display = 'inline-block';
+    }
   }
 
   db.ref('rows').on('child_added', snapshot => {
@@ -415,9 +449,16 @@
     if (data.town && data.road) geocodeAndMark(data.town, data.road);
   });
 
+  db.ref('rows').on('child_changed', snapshot => {
+    // Remove old row and recreate on change to update UI
+    const existingRow = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
+    if (existingRow) existingRow.remove();
+    createRow(snapshot.key, snapshot.val());
+  });
+
   db.ref('rows').on('child_removed', snapshot => {
-    const tr = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
-    if (tr) tr.remove();
+    const existingRow = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
+    if (existingRow) existingRow.remove();
   });
 
   document.getElementById('addRowBtn').onclick = () => {
@@ -432,9 +473,8 @@
     const townFilter = document.getElementById('searchTown').value.toLowerCase();
     const roadFilter = document.getElementById('searchRoad').value.toLowerCase();
     Array.from(tableBody.children).forEach(row => {
-      const inputs = row.querySelectorAll('input[type="text"]');
-      const town = inputs[0]?.value.toLowerCase() || '';
-      const road = inputs[1]?.value.toLowerCase() || '';
+      const town = row.querySelector('td[data-label="Town Name"] input').value.toLowerCase();
+      const road = row.querySelector('td[data-label="Road Name"] input').value.toLowerCase();
       row.style.display = (town.includes(townFilter) && road.includes(roadFilter)) ? '' : 'none';
     });
   }
@@ -451,8 +491,8 @@
     document.getElementById('contentContainer').style.display = 'block';
   };
 
-  // Initialize tablesort for sorting
-  new Tablesort(document.querySelector("table"));
+  // Initialize table sort on load
+  new Tablesort(document.querySelector('table'));
 </script>
 </body>
 </html>
