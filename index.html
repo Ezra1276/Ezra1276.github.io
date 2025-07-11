@@ -23,8 +23,7 @@
     #mapContainer {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       width: 100vw;
       height: 100vh;
       z-index: 1000;
@@ -33,15 +32,25 @@
       flex-direction: column;
     }
     #mapControls {
+      position: relative;
       padding: 10px;
-      text-align: center;
-      border-bottom: 1px solid #ccc;
       background: #f9f9f9;
+      border-bottom: 1px solid #ccc;
+      z-index: 1100;
     }
-    #mapControls button {
-      padding: 8px 12px;
+    #mapBackToSiteBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1200;
+      padding: 10px 15px;
+      background: #ff4c4c;
+      color: white;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
-      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     input[type="text"], input[type="datetime-local"], input[type="file"] {
       width: 100%;
@@ -174,7 +183,7 @@
   const contentContainer = document.getElementById('contentContainer');
   const mapBackToSiteBtn = document.getElementById('mapBackToSiteBtn');
 
-  // Initialize Leaflet map centered on Vermont, no bounds restrictions
+  // Initialize Leaflet map centered on Vermont
   const map = L.map('map', {
     minZoom: 2,
     maxZoom: 18,
@@ -183,7 +192,7 @@
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  // Helper: red marker icon
+  // Red dot marker icon
   function redDot() {
     return L.icon({
       iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
@@ -286,7 +295,14 @@
 
       let imageUrl = rowData.imageUrl || '';
       if (fileInput.files.length > 0) {
-        imageUrl = await uploadToImgBB(fileInput.files[0]);
+        try {
+          imageUrl = await uploadToImgBB(fileInput.files[0]);
+        } catch (e) {
+          alert("Image upload failed.");
+          submitBtn.textContent = 'Submit';
+          submitBtn.disabled = false;
+          return;
+        }
       }
 
       const newData = {
