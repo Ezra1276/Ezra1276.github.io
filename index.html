@@ -6,315 +6,160 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    /* Reset and base */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f9fafb;
-      color: #222;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 20px;
-      font-weight: 700;
-      color: #2c3e50;
+      font-size: 24px;
     }
 
-    /* Buttons */
-    button {
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: 600;
-      padding: 8px 14px;
-      transition: background-color 0.3s ease;
-      user-select: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    button:hover:not(:disabled) {
-      background: #2980b9;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* Map open/back buttons */
-    #openMapBtn {
-      font-size: 18px;
-      margin-bottom: 15px;
-    }
-    #mapBackToSiteBtn {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 1200;
-      padding: 10px 15px;
-      background: #e74c3c;
-      font-weight: 700;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    }
-
-    /* Layout containers */
     #mapContainer {
       display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100vw;
       height: 100vh;
+      z-index: 1000;
       background: white;
       flex-direction: column;
-      z-index: 1000;
     }
+
     #mapControls {
-      position: relative;
-      padding: 10px 0;
+      padding: 10px;
       background: #f9f9f9;
       border-bottom: 1px solid #ccc;
-      text-align: center;
-      font-weight: 600;
-      color: #333;
-      user-select: none;
+      z-index: 1100;
     }
+
+    #mapBackToSiteBtn {
+      padding: 10px 15px;
+      background: #ff4c4c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
     #map {
       flex-grow: 1;
       width: 100%;
+      height: 100%;
     }
 
-    /* Table styles */
+    input[type="text"], input[type="datetime-local"], input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      margin-top: 4px;
+    }
+
+    #searchTown, #searchRoad {
+      font-size: 16px;
+      padding: 10px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
-      overflow: hidden;
       margin-top: 10px;
+      font-size: 16px;
     }
 
     th, td {
-      padding: 12px 10px;
+      padding: 10px;
       text-align: left;
-      vertical-align: middle;
-      border-bottom: 1px solid #e1e4e8;
-
-      min-width: auto;
-      max-width: none;
-      white-space: normal;
-      overflow-wrap: break-word;
-      word-break: break-word;
+      vertical-align: top;
     }
 
     th {
-      background-color: #f2f6fa;
-      font-weight: 700;
-      color: #34495e;
-    }
-
-    /* Inputs and selects styling */
-    td input[type="text"],
-    td input[type="datetime-local"],
-    td select.status-select {
-      width: 100%;
-      min-width: 0;
-      white-space: normal;
-      word-wrap: break-word;
-      box-sizing: border-box;
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      font-family: inherit;
-      transition: border-color 0.3s ease;
-    }
-    td input[type="text"]:focus,
-    td input[type="datetime-local"]:focus,
-    td select.status-select:focus {
-      outline: none;
-      border-color: #3498db;
-      box-shadow: 0 0 4px #3498dbaa;
-    }
-
-    /* Image cell */
-    td img {
-      max-width: 150px;
-      max-height: 90px;
-      object-fit: contain;
-      border-radius: 4px;
-      margin-bottom: 6px;
-      display: block;
-    }
-    td input[type="file"] {
-      width: 100%;
-      font-size: 12px;
-    }
-
-    /* Road cell: input + map button container */
-    .road-cell {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: nowrap;
-    }
-    .road-cell input[type="text"] {
-      flex-grow: 1;
-      min-width: 0;
-    }
-    .map-button {
-      flex-shrink: 0;
-      font-size: 18px;
-      background: #2ecc71;
-      padding: 6px 10px;
-      border-radius: 5px;
-      box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
-      transition: background-color 0.3s ease;
-      user-select: none;
-    }
-    .map-button:hover {
-      background: #27ae60;
-    }
-
-    /* Actions buttons container (submit + delete side by side) */
-    .actions-container {
-      display: flex;
-      gap: 10px;
-      flex-wrap: nowrap;
-    }
-    .submit-btn {
-      background: #3498db;
-      flex: 1;
-    }
-    .delete-btn {
-      background: #e74c3c;
-      flex: 1;
-    }
-
-    /* Error styling for inputs */
-    .error {
-      border-color: #e74c3c !important;
-      box-shadow: 0 0 5px #e74c3c88 !important;
-    }
-
-    /* Status select options styling */
-    select.status-select {
+      background-color: #f2f2f2;
       cursor: pointer;
     }
 
-    /* Status marker colors legend */
-    #statusLegend {
+    img {
+      max-width: 150px;
+      height: auto;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    button {
       margin-top: 10px;
-      font-size: 14px;
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-      user-select: none;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 600;
-      color: #444;
-    }
-    .legend-color {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      display: inline-block;
-      border: 1px solid #ccc;
-    }
-    .legend-color.green { background: #2ecc71; }
-    .legend-color.yellow { background: #f1c40f; }
-    .legend-color.red { background: #e74c3c; }
-    .legend-color.gray { background: #7f8c8d; }
-
-    /* Spinner inside buttons */
-    .spinner {
-      margin-left: 8px;
-      width: 14px;
-      height: 14px;
-      border: 2px solid #fff;
-      border-top: 2px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
     }
 
-    /* Responsive adjustments */
+    .error {
+      border: 2px solid red;
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 10px;
       }
-      #openMapBtn {
-        width: 100%;
+
+      h1 {
+        font-size: 20px;
       }
+
       table, thead, tbody, th, td, tr {
         display: block;
-        width: 100%;
       }
-      thead tr {
-        display: none;
-      }
+
       tr {
         margin-bottom: 20px;
-        border-bottom: 2px solid #ddd;
-        padding-bottom: 10px;
+        border-bottom: 2px solid #ccc;
       }
+
+      th {
+        display: none;
+      }
+
       td {
-        text-align: right;
-        padding-left: 50%;
         position: relative;
-        border: none;
-        border-bottom: 1px solid #eee;
+        padding-left: 50%;
       }
+
       td::before {
         content: attr(data-label);
         position: absolute;
         left: 10px;
-        top: 12px;
-        font-weight: 700;
-        color: #34495e;
-        width: 45%;
+        font-weight: bold;
         white-space: nowrap;
-        text-align: left;
       }
-      .road-cell {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .road-cell input[type="text"] {
-        width: 100% !important;
-        margin-bottom: 6px;
-      }
-      .map-button {
-        width: 100%;
-        font-size: 22px;
-        padding: 8px 0;
-        border-radius: 6px;
-      }
-      .actions-container {
-        flex-direction: column;
-        gap: 10px;
-      }
-      .submit-btn, .delete-btn {
-        width: 100%;
-        flex: none;
-      }
-      td img {
+
+      img {
         max-width: 100%;
-        height: auto;
       }
-      input[type="file"] {
-        font-size: 14px;
+
+      button {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      input[type="text"], input[type="datetime-local"], input[type="file"] {
+        font-size: 16px;
+      }
+
+      #searchTown, #searchRoad {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: white;
+        margin-top: 0;
+        margin-bottom: 0;
+        border-bottom: 1px solid #ccc;
       }
     }
   </style>
@@ -323,19 +168,13 @@
 
 <h1>Vermont Road Closures</h1>
 
-<div style="text-align:center;">
+<div style="text-align:center; margin-bottom: 15px;">
   <button id="openMapBtn">🗺 View Fullscreen Map</button>
 </div>
 
 <div id="mapContainer">
   <div id="mapControls">
     <button id="mapBackToSiteBtn">⬅ Back to Site</button>
-    <div id="statusLegend">
-      <div class="legend-item"><span class="legend-color green"></span> Passable</div>
-      <div class="legend-item"><span class="legend-color yellow"></span> Slightly Washed Out</div>
-      <div class="legend-item"><span class="legend-color red"></span> Impassable</div>
-      <div class="legend-item"><span class="legend-color gray"></span> Unknown</div>
-    </div>
   </div>
   <div id="map"></div>
 </div>
@@ -344,7 +183,7 @@
   <input type="text" id="searchTown" placeholder="Search by town name..." />
   <input type="text" id="searchRoad" placeholder="Search by road name..." />
 
-  <table>
+  <table border="1">
     <thead>
       <tr>
         <th>Town Name</th>
@@ -352,7 +191,6 @@
         <th>Image</th>
         <th>Time Reported</th>
         <th>Reported By</th>
-        <th>Status</th>
         <th>Notes</th>
         <th>Actions</th>
       </tr>
@@ -363,10 +201,10 @@
   <button id="addRowBtn">Add New Row</button>
 </div>
 
-<!-- Firebase and Leaflet -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -383,44 +221,38 @@
   const db = firebase.database();
   const IMGBB_API_KEY = 'dbc72d2ce36090fd55be72eac5cc5147';
 
-  // DOM elements
   const tableBody = document.getElementById('tableBody');
-  const mapContainer = document.getElementById('mapContainer');
-  const contentContainer = document.getElementById('contentContainer');
-  const openMapBtn = document.getElementById('openMapBtn');
-  const mapBackBtn = document.getElementById('mapBackToSiteBtn');
-  const searchTown = document.getElementById('searchTown');
-  const searchRoad = document.getElementById('searchRoad');
-
-  // Leaflet map setup
   const map = L.map('map').setView([44.0, -72.7], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  // Marker icons for statuses
-  const icons = {
-    passable: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
-    slightly_washed_out: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
-    impassable: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
-    unknown: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/grey-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
-  };
-
-  // Map of rowId -> Leaflet marker
-  const markers = new Map();
-
-  // Status options for dropdown
-  const statusOptions = [
-    { value: 'passable', label: 'Passable' },
-    { value: 'slightly_washed_out', label: 'Slightly Washed Out' },
-    { value: 'impassable', label: 'Impassable' },
-    { value: 'unknown', label: 'Unknown' },
-  ];
-
-  // Sanitize text input
-  function sanitize(str) {
-    return (str || '').toString().trim();
+  function redDot() {
+    return L.icon({
+      iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
   }
 
-  // Upload image to imgbb
+  const geocache = new Map();
+
+  async function geocodeAndMark(town, road) {
+    const query = `${road}, ${town}, Vermont`;
+    if (geocache.has(query)) {
+      return; // Marker already exists
+    }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        const latLng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        geocache.set(query, latLng);
+        L.marker(latLng, { icon: redDot() }).addTo(map);
+      }
+    } catch (e) {
+      console.warn("Geocoding failed for:", query);
+    }
+  }
+
   async function uploadToImgBB(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -431,314 +263,236 @@
           body: new URLSearchParams({ image: base64 })
         })
           .then(res => res.json())
-          .then(data => {
-            if (data.success) resolve(data.data.url);
-            else reject('Upload failed');
-          })
-          .catch(err => reject(err));
+          .then(data => data.success ? resolve(data.data.url) : reject("Upload failed"))
+          .catch(reject);
       };
       reader.readAsDataURL(file);
     });
   }
 
-  // Geocode and place marker
-  async function geocodeAndMark(rowId, town, road, status='unknown') {
-    const query = `${sanitize(road)}, ${sanitize(town)}, Vermont`;
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      if (data.length > 0) {
-        const latLng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-
-        // Remove old marker if exists
-        if (markers.has(rowId)) {
-          map.removeLayer(markers.get(rowId));
-          markers.delete(rowId);
-        }
-
-        // Choose icon by status
-        const icon = icons[status] || icons.unknown;
-
-        const marker = L.marker(latLng, { icon }).addTo(map);
-        marker.bindPopup(
-          `<b>${sanitize(road)}, ${sanitize(town)}</b><br>Status: ${statusOptions.find(o=>o.value===status)?.label || 'Unknown'}`
-        );
-        markers.set(rowId, marker);
-
-        return latLng;
-      }
-    } catch (e) {
-      console.warn("Geocoding failed for:", query);
-    }
-    return null;
-  }
-
-  // Get ISO string for datetime-local input default
   function getCurrentDatetimeLocal() {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   }
 
-  // Create a new table row
+  function sanitize(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   function createRow(rowId, rowData = {}) {
     if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
     const tr = document.createElement('tr');
     tr.dataset.firebaseKey = rowId;
 
-    // Town input
     const townInput = document.createElement('input');
     townInput.type = 'text';
     townInput.value = rowData.town || '';
-    townInput.placeholder = 'Town name';
 
-    // Road input + map button container
-    const roadCell = document.createElement('td');
-    roadCell.classList.add('road-cell');
     const roadInput = document.createElement('input');
     roadInput.type = 'text';
     roadInput.value = rowData.road || '';
-    roadInput.placeholder = 'Road name';
 
+    // Create map button, hidden initially
     const mapBtn = document.createElement('button');
-    mapBtn.type = 'button';
-    mapBtn.className = 'map-button';
-    mapBtn.title = 'Show on map';
     mapBtn.textContent = '🗺';
-    mapBtn.onclick = async () => {
-      if (!sanitize(townInput.value) || !sanitize(roadInput.value)) {
-        alert('Town and Road must be filled first');
-        return;
-      }
-      contentContainer.style.display = 'none';
-      mapContainer.style.display = 'flex';
-      map.invalidateSize();
-      const latLng = await geocodeAndMark(rowId, townInput.value, roadInput.value, statusSelect.value);
+    mapBtn.title = 'Show on Map';
+    mapBtn.style.marginLeft = '5px';
+    mapBtn.style.fontSize = '18px';
+    mapBtn.style.padding = '4px 8px';
+    mapBtn.style.cursor = 'pointer';
+    mapBtn.style.display = 'none';
+
+    mapBtn.onclick = () => {
+      const query = `${roadInput.value}, ${townInput.value}, Vermont`;
+      const latLng = geocache.get(query);
       if (latLng) {
-        map.setView(latLng, 14);
-        if (markers.has(rowId)) {
-          markers.get(rowId).openPopup();
-        }
+        document.getElementById('mapContainer').style.display = 'flex';
+        document.getElementById('contentContainer').style.display = 'none';
+        setTimeout(() => {
+          map.invalidateSize();
+          map.setView(latLng, 14, { animate: true });
+        }, 200);
+      } else {
+        alert('Location not found on map yet.');
       }
     };
-    roadCell.appendChild(roadInput);
-    roadCell.appendChild(mapBtn);
 
-    // Image cell
-    const imageCell = document.createElement('td');
-    if (rowData.imageUrl) {
-      const img = document.createElement('img');
-      img.src = rowData.imageUrl;
-      img.alt = "Road closure image";
-      imageCell.appendChild(img);
-    }
-    const imageInput = document.createElement('input');
-    imageInput.type = 'file';
-    imageInput.accept = 'image/*';
-    imageInput.title = "Upload image";
-    imageCell.appendChild(imageInput);
+    const roadContainer = document.createElement('div');
+    roadContainer.style.display = 'flex';
+    roadContainer.style.alignItems = 'center';
+    roadContainer.appendChild(roadInput);
+    roadContainer.appendChild(mapBtn);
 
-    // Time reported input (datetime-local)
+    const image = document.createElement('img');
+    image.src = rowData.imageUrl || 'https://via.placeholder.com/150';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (file) image.src = URL.createObjectURL(file);
+    });
+
     const timeInput = document.createElement('input');
     timeInput.type = 'datetime-local';
-    timeInput.value = rowData.timeReported || getCurrentDatetimeLocal();
+    timeInput.value = rowData.time || getCurrentDatetimeLocal();
 
-    // Reported by input
-    const reportedByInput = document.createElement('input');
-    reportedByInput.type = 'text';
-    reportedByInput.value = rowData.reportedBy || '';
-    reportedByInput.placeholder = 'Reporter name';
+    const timeHint = document.createElement('small');
+    timeHint.style.color = 'gray';
+    timeHint.textContent = '(defaults to now)';
 
-    // Status select dropdown
-    const statusSelect = document.createElement('select');
-    statusSelect.className = 'status-select';
-    for (const opt of statusOptions) {
-      const option = document.createElement('option');
-      option.value = opt.value;
-      option.textContent = opt.label;
-      if (rowData.status === opt.value) option.selected = true;
-      statusSelect.appendChild(option);
-    }
+    const reporterInput = document.createElement('input');
+    reporterInput.type = 'text';
+    reporterInput.value = rowData.reporter || '';
 
-    // Notes input
     const notesInput = document.createElement('input');
     notesInput.type = 'text';
     notesInput.value = rowData.notes || '';
-    notesInput.placeholder = 'Notes';
 
-    // Actions (submit + delete)
-    const actionsCell = document.createElement('td');
-    actionsCell.className = 'actions-container';
     const submitBtn = document.createElement('button');
-    submitBtn.type = 'button';
-    submitBtn.className = 'submit-btn';
-    submitBtn.textContent = rowData.submitted ? 'Update' : 'Submit';
+    submitBtn.textContent = rowData.town && rowData.road ? 'Update' : 'Submit';
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.textContent = 'Delete';
-
-    // Loading spinner
-    const spinner = document.createElement('span');
-    spinner.className = 'spinner';
-    spinner.style.display = 'none';
-    submitBtn.appendChild(spinner);
-
-    // Add all cells to the row
-    tr.appendChild(createCellWithInput(townInput, 'Town Name'));
-    tr.appendChild(roadCell);
-    tr.appendChild(imageCell);
-    tr.appendChild(createCellWithInput(timeInput, 'Time Reported'));
-    tr.appendChild(createCellWithInput(reportedByInput, 'Reported By'));
-    tr.appendChild(createCellWithInput(statusSelect, 'Status'));
-    tr.appendChild(createCellWithInput(notesInput, 'Notes'));
-    actionsCell.appendChild(submitBtn);
-    actionsCell.appendChild(deleteBtn);
-    tr.appendChild(actionsCell);
-
-    // Append row to table body
-    tableBody.appendChild(tr);
-
-    // Delete handler
-    deleteBtn.onclick = () => {
-      if (confirm('Are you sure you want to delete this row?')) {
-        db.ref('closures/' + rowId).remove();
-        if (markers.has(rowId)) {
-          map.removeLayer(markers.get(rowId));
-          markers.delete(rowId);
-        }
-        tr.remove();
-      }
-    };
-
-    // Submit/update handler
     submitBtn.onclick = async () => {
-      // Disable button + show spinner
-      submitBtn.disabled = true;
-      spinner.style.display = 'inline-block';
-
-      // Validate required fields
-      if (!sanitize(townInput.value) || !sanitize(roadInput.value) || !timeInput.value || !sanitize(reportedByInput.value)) {
-        alert('Please fill out Town, Road, Time Reported, and Reported By fields.');
-        submitBtn.disabled = false;
-        spinner.style.display = 'none';
+      [townInput, roadInput, timeInput, reporterInput].forEach(el => el.classList.remove('error'));
+      const requiredFields = [townInput, roadInput, timeInput, reporterInput];
+      if (requiredFields.some(el => !el.value.trim())) {
+        requiredFields.forEach(el => { if (!el.value.trim()) el.classList.add('error'); });
+        alert("Please fill out all required fields.");
         return;
       }
 
-      // Upload image if new selected
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+
       let imageUrl = rowData.imageUrl || '';
-      if (imageInput.files.length > 0) {
+      if (fileInput.files.length > 0) {
         try {
-          imageUrl = await uploadToImgBB(imageInput.files[0]);
+          imageUrl = await uploadToImgBB(fileInput.files[0]);
         } catch (e) {
-          alert('Image upload failed. Please try again.');
+          alert("Image upload failed.");
+          submitBtn.textContent = rowData.town && rowData.road ? 'Update' : 'Submit';
           submitBtn.disabled = false;
-          spinner.style.display = 'none';
           return;
         }
       }
 
-      // Prepare data
-      const dataToSave = {
+      const newData = {
         town: sanitize(townInput.value),
         road: sanitize(roadInput.value),
         imageUrl,
-        timeReported: timeInput.value,
-        reportedBy: sanitize(reportedByInput.value),
-        status: statusSelect.value,
-        notes: sanitize(notesInput.value),
-        submitted: true
+        time: timeInput.value,
+        reporter: sanitize(reporterInput.value),
+        notes: sanitize(notesInput.value)
       };
 
-      // Save to Firebase
-      try {
-        await db.ref('closures/' + rowId).set(dataToSave);
-        submitBtn.textContent = 'Update';
-        submitBtn.appendChild(spinner);
-        // Update marker on map
-        await geocodeAndMark(rowId, dataToSave.town, dataToSave.road, dataToSave.status);
-      } catch (e) {
-        alert('Failed to save data. Please try again.');
+      await db.ref('rows/' + rowId).set(newData);
+      await geocodeAndMark(newData.town, newData.road);
+
+      const query = `${newData.road}, ${newData.town}, Vermont`;
+      if (geocache.has(query)) {
+        mapBtn.style.display = 'inline-block';
       }
 
+      submitBtn.textContent = 'Update';
       submitBtn.disabled = false;
-      spinner.style.display = 'none';
     };
 
-    // On any input change mark row as unsaved (optional)
-    const markUnsaved = () => {
-      if (submitBtn.textContent !== 'Submit') {
-        submitBtn.textContent = 'Update';
-        submitBtn.appendChild(spinner);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.onclick = async () => {
+      if (confirm('Are you sure you want to delete this row?')) {
+        await db.ref('rows/' + rowId).remove();
+        tr.remove();
       }
     };
-    [townInput, roadInput, timeInput, reportedByInput, statusSelect, notesInput].forEach(input => {
-      input.addEventListener('input', markUnsaved);
-    });
-    imageInput.addEventListener('change', markUnsaved);
 
-    return tr;
-  }
-
-  // Helper: wrap input/select in td with data-label attribute for mobile
-  function createCellWithInput(inputElem, label) {
-    const td = document.createElement('td');
-    td.dataset.label = label;
-    td.appendChild(inputElem);
-    return td;
-  }
-
-  // Add new row with generated key
-  function addNewRow() {
-    const newRef = db.ref('closures').push();
-    createRow(newRef.key, {});
-  }
-
-  // Load data from Firebase and populate table
-  db.ref('closures').on('value', snapshot => {
-    tableBody.innerHTML = '';
-    markers.forEach(m => map.removeLayer(m));
-    markers.clear();
-
-    const data = snapshot.val() || {};
-    for (const key in data) {
-      createRow(key, data[key]);
+    function appendCell(parent, label, ...elements) {
+      const td = document.createElement('td');
+      td.setAttribute('data-label', label);
+      elements.forEach(el => td.appendChild(el));
+      parent.appendChild(td);
     }
+
+    appendCell(tr, 'Town Name', townInput);
+    appendCell(tr, 'Road Name', roadContainer);
+    appendCell(tr, 'Image', image, fileInput);
+
+    const timeWrapper = document.createElement('div');
+    timeWrapper.appendChild(timeInput);
+    timeWrapper.appendChild(timeHint);
+    appendCell(tr, 'Time Reported', timeWrapper);
+
+    appendCell(tr, 'Reported By', reporterInput);
+    appendCell(tr, 'Notes', notesInput);
+
+    const actionTd = document.createElement('td');
+    actionTd.setAttribute('data-label', 'Actions');
+    actionTd.appendChild(submitBtn);
+    actionTd.appendChild(deleteBtn);
+    tr.appendChild(actionTd);
+
+    tableBody.appendChild(tr);
+
+    const query = `${roadInput.value}, ${townInput.value}, Vermont`;
+    if (rowData.town && rowData.road && geocache.has(query)) {
+      mapBtn.style.display = 'inline-block';
+    }
+  }
+
+  db.ref('rows').on('child_added', snapshot => {
+    const data = snapshot.val();
+    createRow(snapshot.key, data);
+    if (data.town && data.road) geocodeAndMark(data.town, data.road);
   });
 
-  // Search filtering
-  function filterTable() {
-    const townFilter = searchTown.value.toLowerCase();
-    const roadFilter = searchRoad.value.toLowerCase();
+  db.ref('rows').on('child_changed', snapshot => {
+    // Remove old row and recreate on change to update UI
+    const existingRow = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
+    if (existingRow) existingRow.remove();
+    createRow(snapshot.key, snapshot.val());
+  });
 
-    [...tableBody.children].forEach(tr => {
-      const townVal = tr.querySelector('td[data-label="Town Name"] input').value.toLowerCase();
-      const roadVal = tr.querySelector('td.road-cell input').value.toLowerCase();
+  db.ref('rows').on('child_removed', snapshot => {
+    const existingRow = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
+    if (existingRow) existingRow.remove();
+  });
 
-      const show = townVal.includes(townFilter) && roadVal.includes(roadFilter);
-      tr.style.display = show ? '' : 'none';
+  document.getElementById('addRowBtn').onclick = () => {
+    const newRef = db.ref('rows').push();
+    createRow(newRef.key);
+  };
+
+  document.getElementById('searchTown').addEventListener('input', filterRows);
+  document.getElementById('searchRoad').addEventListener('input', filterRows);
+
+  function filterRows() {
+    const townFilter = document.getElementById('searchTown').value.toLowerCase();
+    const roadFilter = document.getElementById('searchRoad').value.toLowerCase();
+    Array.from(tableBody.children).forEach(row => {
+      const town = row.querySelector('td[data-label="Town Name"] input').value.toLowerCase();
+      const road = row.querySelector('td[data-label="Road Name"] input').value.toLowerCase();
+      row.style.display = (town.includes(townFilter) && road.includes(roadFilter)) ? '' : 'none';
     });
   }
 
-  searchTown.addEventListener('input', filterTable);
-  searchRoad.addEventListener('input', filterTable);
-
-  // Map button handlers
-  openMapBtn.onclick = () => {
-    contentContainer.style.display = 'none';
-    mapContainer.style.display = 'flex';
-    map.invalidateSize();
-  };
-  mapBackBtn.onclick = () => {
-    mapContainer.style.display = 'none';
-    contentContainer.style.display = '';
+  document.getElementById('openMapBtn').onclick = () => {
+    document.getElementById('mapContainer').style.display = 'flex';
+    document.getElementById('contentContainer').style.display = 'none';
+    setTimeout(() => map.invalidateSize(), 200);
+    map.setView([44.0, -72.7], 8);
   };
 
-  // Add row button
-  document.getElementById('addRowBtn').onclick = addNewRow;
+  document.getElementById('mapBackToSiteBtn').onclick = () => {
+    document.getElementById('mapContainer').style.display = 'none';
+    document.getElementById('contentContainer').style.display = 'block';
+  };
 
+  // Initialize table sort on load
+  new Tablesort(document.querySelector('table'));
 </script>
-
 </body>
 </html>
