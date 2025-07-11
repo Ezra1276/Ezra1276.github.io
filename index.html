@@ -8,18 +8,14 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
       margin: 0;
+      padding: 20px;
     }
+
     h1 {
       text-align: center;
     }
-    #map {
-      height: 400px;
-      width: 100%;
-      border: 2px solid #ccc;
-      border-radius: 8px;
-    }
+
     #mapContainer {
       display: none;
       position: fixed;
@@ -28,9 +24,9 @@
       height: 100vh;
       z-index: 1000;
       background: white;
-      display: flex;
       flex-direction: column;
     }
+
     #mapControls {
       position: relative;
       padding: 10px;
@@ -38,6 +34,7 @@
       border-bottom: 1px solid #ccc;
       z-index: 1100;
     }
+
     #mapBackToSiteBtn {
       position: absolute;
       top: 10px;
@@ -52,12 +49,19 @@
       font-weight: bold;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
+
+    #map {
+      flex-grow: 1;
+      width: 100%;
+    }
+
     input[type="text"], input[type="datetime-local"], input[type="file"] {
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
       margin-top: 4px;
     }
+
     #searchTown, #searchRoad {
       font-size: 16px;
       padding: 10px;
@@ -65,33 +69,40 @@
       width: 100%;
       box-sizing: border-box;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
+
     th, td {
       padding: 10px;
       text-align: left;
       vertical-align: top;
     }
+
     th {
       background-color: #f2f2f2;
     }
+
     img {
       max-width: 150px;
       height: auto;
       display: block;
       margin-bottom: 8px;
     }
+
     button {
       margin-top: 10px;
       padding: 8px 12px;
       cursor: pointer;
     }
+
     .error {
       border: 2px solid red;
     }
+
     @media (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block;
@@ -147,6 +158,7 @@
         <th>Image</th>
         <th>Time Reported</th>
         <th>Reported By</th>
+        <th>Notes</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -156,7 +168,6 @@
   <button id="addRowBtn">Add New Row</button>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -174,25 +185,12 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-
   const IMGBB_API_KEY = 'dbc72d2ce36090fd55be72eac5cc5147';
+
   const tableBody = document.getElementById('tableBody');
-  const addRowBtn = document.getElementById('addRowBtn');
-  const openMapBtn = document.getElementById('openMapBtn');
-  const mapContainer = document.getElementById('mapContainer');
-  const contentContainer = document.getElementById('contentContainer');
-  const mapBackToSiteBtn = document.getElementById('mapBackToSiteBtn');
-
-  // Initialize Leaflet map centered on Vermont
-  const map = L.map('map', {
-    minZoom: 2,
-    maxZoom: 18,
-    scrollWheelZoom: true
-  }).setView([44.0, -72.7], 8);
-
+  const map = L.map('map').setView([44.0, -72.7], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  // Red dot marker icon
   function redDot() {
     return L.icon({
       iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
@@ -247,7 +245,6 @@
 
   function createRow(rowId, rowData = {}) {
     if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
-
     const tr = document.createElement('tr');
     tr.dataset.firebaseKey = rowId;
 
@@ -278,18 +275,21 @@
     reporterInput.type = 'text';
     reporterInput.value = rowData.reporter || '';
 
+    const notesInput = document.createElement('input');
+    notesInput.type = 'text';
+    notesInput.value = rowData.notes || '';
+
     const submitBtn = document.createElement('button');
     submitBtn.textContent = 'Submit';
     submitBtn.onclick = async () => {
       [townInput, roadInput, timeInput, reporterInput].forEach(el => el.classList.remove('error'));
-      const fields = [townInput, roadInput, timeInput, reporterInput];
-      if (fields.some(el => !el.value.trim())) {
-        fields.forEach(el => {
-          if (!el.value.trim()) el.classList.add('error');
-        });
+      const requiredFields = [townInput, roadInput, timeInput, reporterInput];
+      if (requiredFields.some(el => !el.value.trim())) {
+        requiredFields.forEach(el => { if (!el.value.trim()) el.classList.add('error'); });
         alert("Please fill out all required fields.");
         return;
       }
+
       submitBtn.disabled = true;
       submitBtn.textContent = 'Saving...';
 
@@ -310,7 +310,8 @@
         road: roadInput.value,
         imageUrl,
         time: timeInput.value,
-        reporter: reporterInput.value
+        reporter: reporterInput.value,
+        notes: notesInput.value
       };
 
       await db.ref('rows/' + rowId).set(newData);
@@ -330,17 +331,17 @@
       tr.remove();
     };
 
-    const actionTd = document.createElement('td');
-    actionTd.appendChild(submitBtn);
-    actionTd.appendChild(deleteBtn);
-
-    [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput]].forEach(elements => {
+    [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput], [notesInput]].forEach(group => {
       const td = document.createElement('td');
-      elements.forEach(el => td.appendChild(el));
+      group.forEach(el => td.appendChild(el));
       tr.appendChild(td);
     });
 
+    const actionTd = document.createElement('td');
+    actionTd.appendChild(submitBtn);
+    actionTd.appendChild(deleteBtn);
     tr.appendChild(actionTd);
+
     tableBody.appendChild(tr);
   }
 
@@ -350,7 +351,7 @@
     if (data.town && data.road) geocodeAndMark(data.town, data.road);
   });
 
-  addRowBtn.onclick = () => {
+  document.getElementById('addRowBtn').onclick = () => {
     const newRef = db.ref('rows').push();
     createRow(newRef.key);
   };
@@ -368,16 +369,16 @@
     });
   }
 
-  openMapBtn.onclick = () => {
-    mapContainer.style.display = 'flex';
-    contentContainer.style.display = 'none';
+  document.getElementById('openMapBtn').onclick = () => {
+    document.getElementById('mapContainer').style.display = 'flex';
+    document.getElementById('contentContainer').style.display = 'none';
     setTimeout(() => map.invalidateSize(), 200);
     map.setView([44.0, -72.7], 8);
   };
 
-  mapBackToSiteBtn.onclick = () => {
-    mapContainer.style.display = 'none';
-    contentContainer.style.display = 'block';
+  document.getElementById('mapBackToSiteBtn').onclick = () => {
+    document.getElementById('mapContainer').style.display = 'none';
+    document.getElementById('contentContainer').style.display = 'block';
   };
 </script>
 </body>
