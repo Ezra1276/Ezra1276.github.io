@@ -353,13 +353,18 @@
       tr.remove();
     };
 
-    [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput], [notesInput]].forEach(group => {
+    const labels = ["Town Name", "Road Name", "Image", "Time Reported", "Reported By", "Notes"];
+    const groups = [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput], [notesInput]];
+
+    groups.forEach((group, index) => {
       const td = document.createElement('td');
+      td.setAttribute('data-label', labels[index]);
       group.forEach(el => td.appendChild(el));
       tr.appendChild(td);
     });
 
     const actionTd = document.createElement('td');
+    actionTd.setAttribute('data-label', "Actions");
     actionTd.appendChild(submitBtn);
     actionTd.appendChild(deleteBtn);
     tr.appendChild(actionTd);
