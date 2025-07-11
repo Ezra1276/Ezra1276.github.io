@@ -83,6 +83,7 @@
 
     th {
       background-color: #f2f2f2;
+      cursor: pointer;
     }
 
     img {
@@ -150,6 +151,16 @@
       input[type="text"], input[type="datetime-local"], input[type="file"] {
         font-size: 16px;
       }
+
+      #searchTown, #searchRoad {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: white;
+        margin-top: 0;
+        margin-bottom: 0;
+        border-bottom: 1px solid #ccc;
+      }
     }
   </style>
 </head>
@@ -193,6 +204,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -265,6 +277,12 @@
     return now.toISOString().slice(0, 16);
   }
 
+  function sanitize(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   function createRow(rowId, rowData = {}) {
     if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
     const tr = document.createElement('tr');
@@ -292,6 +310,11 @@
     const timeInput = document.createElement('input');
     timeInput.type = 'datetime-local';
     timeInput.value = rowData.time || getCurrentDatetimeLocal();
+
+    // Add a small hint below time input
+    const timeHint = document.createElement('small');
+    timeHint.style.color = 'gray';
+    timeHint.textContent = '(defaults to now)';
 
     const reporterInput = document.createElement('input');
     reporterInput.type = 'text';
@@ -327,13 +350,14 @@
         }
       }
 
+      // Sanitize inputs before saving
       const newData = {
-        town: townInput.value,
-        road: roadInput.value,
+        town: sanitize(townInput.value),
+        road: sanitize(roadInput.value),
         imageUrl,
         time: timeInput.value,
-        reporter: reporterInput.value,
-        notes: notesInput.value
+        reporter: sanitize(reporterInput.value),
+        notes: sanitize(notesInput.value)
       };
 
       await db.ref('rows/' + rowId).set(newData);
@@ -349,22 +373,35 @@
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Delete';
     deleteBtn.onclick = async () => {
-      await db.ref('rows/' + rowId).remove();
-      tr.remove();
+      if (confirm('Are you sure you want to delete this row?')) {
+        await db.ref('rows/' + rowId).remove();
+        tr.remove();
+      }
     };
 
-    const labels = ["Town Name", "Road Name", "Image", "Time Reported", "Reported By", "Notes"];
-    const groups = [[townInput], [roadInput], [image, fileInput], [timeInput], [reporterInput], [notesInput]];
-
-    groups.forEach((group, index) => {
+    // Append all cells with data-label for mobile
+    function appendCell(parent, label, ...elements) {
       const td = document.createElement('td');
-      td.setAttribute('data-label', labels[index]);
-      group.forEach(el => td.appendChild(el));
-      tr.appendChild(td);
-    });
+      td.setAttribute('data-label', label);
+      elements.forEach(el => td.appendChild(el));
+      parent.appendChild(td);
+    }
+
+    appendCell(tr, 'Town Name', townInput);
+    appendCell(tr, 'Road Name', roadInput);
+    appendCell(tr, 'Image', image, fileInput);
+    
+    // Time input and hint together
+    const timeWrapper = document.createElement('div');
+    timeWrapper.appendChild(timeInput);
+    timeWrapper.appendChild(timeHint);
+    appendCell(tr, 'Time Reported', timeWrapper);
+
+    appendCell(tr, 'Reported By', reporterInput);
+    appendCell(tr, 'Notes', notesInput);
 
     const actionTd = document.createElement('td');
-    actionTd.setAttribute('data-label', "Actions");
+    actionTd.setAttribute('data-label', 'Actions');
     actionTd.appendChild(submitBtn);
     actionTd.appendChild(deleteBtn);
     tr.appendChild(actionTd);
@@ -376,6 +413,11 @@
     const data = snapshot.val();
     createRow(snapshot.key, data);
     if (data.town && data.road) geocodeAndMark(data.town, data.road);
+  });
+
+  db.ref('rows').on('child_removed', snapshot => {
+    const tr = document.querySelector(`tr[data-firebase-key="${snapshot.key}"]`);
+    if (tr) tr.remove();
   });
 
   document.getElementById('addRowBtn').onclick = () => {
@@ -390,8 +432,9 @@
     const townFilter = document.getElementById('searchTown').value.toLowerCase();
     const roadFilter = document.getElementById('searchRoad').value.toLowerCase();
     Array.from(tableBody.children).forEach(row => {
-      const town = row.querySelector('input[type="text"]').value.toLowerCase();
-      const road = row.querySelectorAll('input[type="text"]')[1].value.toLowerCase();
+      const inputs = row.querySelectorAll('input[type="text"]');
+      const town = inputs[0]?.value.toLowerCase() || '';
+      const road = inputs[1]?.value.toLowerCase() || '';
       row.style.display = (town.includes(townFilter) && road.includes(roadFilter)) ? '' : 'none';
     });
   }
@@ -407,6 +450,9 @@
     document.getElementById('mapContainer').style.display = 'none';
     document.getElementById('contentContainer').style.display = 'block';
   };
+
+  // Initialize tablesort for sorting
+  new Tablesort(document.querySelector("table"));
 </script>
 </body>
 </html>
