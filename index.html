@@ -6,187 +6,343 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
+    /* Reset and base */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f0f2f5;
-      color: #333;
+      background: #f9fafb;
+      color: #222;
     }
+
     h1 {
       text-align: center;
       margin-bottom: 20px;
+      font-weight: 700;
+      color: #2c3e50;
     }
-    #openMapBtn {
-      display: block;
-      margin: 0 auto 20px;
-      padding: 10px 16px;
-      font-size: 16px;
+
+    /* Buttons */
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
+      font-weight: 600;
+      padding: 8px 14px;
+      transition: background-color 0.3s ease;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
+    button:hover:not(:disabled) {
+      background: #2980b9;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Map open/back buttons */
+    #openMapBtn {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+    #mapBackToSiteBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1200;
+      padding: 10px 15px;
+      background: #e74c3c;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    /* Layout containers */
     #mapContainer {
       display: none;
       position: fixed;
       top: 0; left: 0;
-      width: 100vw; height: 100vh;
+      width: 100vw;
+      height: 100vh;
       background: white;
       flex-direction: column;
       z-index: 1000;
     }
     #mapControls {
-      display: flex;
-      align-items: center;
-      padding: 10px;
+      position: relative;
+      padding: 10px 0;
       background: #f9f9f9;
       border-bottom: 1px solid #ccc;
-    }
-    #mapBackToSiteBtn {
-      background: #e74c3c;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
-      cursor: pointer;
+      text-align: center;
+      font-weight: 600;
+      color: #333;
+      user-select: none;
     }
     #map {
-      flex: 1;
+      flex-grow: 1;
       width: 100%;
     }
-    #contentContainer {
-      max-width: 1200px;
-      margin: auto;
-    }
-    #searchTown, #searchRoad {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
+
+    /* Table styles */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
-      table-layout: fixed;
-      word-break: break-word;
       background: white;
       border-radius: 8px;
+      box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
       overflow: hidden;
+      margin-top: 10px;
     }
+
     th, td {
-      padding: 10px;
-      border-bottom: 1px solid #e1e4e8;
+      padding: 12px 10px;
+      text-align: left;
       vertical-align: middle;
-      position: relative;
+      border-bottom: 1px solid #e1e4e8;
+
+      min-width: auto;
+      max-width: none;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
+
     th {
-      background: #e9ebee;
-      font-weight: bold;
+      background-color: #f2f6fa;
+      font-weight: 700;
+      color: #34495e;
     }
-    td img {
-      max-width: 100px;
+
+    /* Inputs and selects styling */
+    td input[type="text"],
+    td input[type="datetime-local"],
+    td select.status-select {
+      width: 100%;
+      min-width: 0;
+      white-space: normal;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
       border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
     }
+    td input[type="text"]:focus,
+    td input[type="datetime-local"]:focus,
+    td select.status-select:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 4px #3498dbaa;
+    }
+
+    /* Image cell */
+    td img {
+      max-width: 150px;
+      max-height: 90px;
+      object-fit: contain;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      display: block;
+    }
+    td input[type="file"] {
+      width: 100%;
+      font-size: 12px;
+    }
+
+    /* Road cell: input + map button container */
     .road-cell {
       display: flex;
       align-items: center;
-      gap: 6px;
-    }
-    .map-button {
-      background: none;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-    }
-    .actions-container {
-      display: flex;
       gap: 8px;
       flex-wrap: nowrap;
     }
-    .actions-container button {
+    .road-cell input[type="text"] {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .map-button {
+      flex-shrink: 0;
+      font-size: 18px;
+      background: #2ecc71;
       padding: 6px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      flex: 1;
+      border-radius: 5px;
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+      transition: background-color 0.3s ease;
+      user-select: none;
     }
-    .submit-btn { background: #27ae60; color: white; }
-    .delete-btn { background: #c0392b; color: white; }
-    .spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #fff;
-      border-top-color: rgba(255,255,255,0.5);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .error {
-      border: 1px solid #e74c3c;
+    .map-button:hover {
+      background: #27ae60;
     }
 
-    /* Mobile layout improvements */
-    @media(max-width:768px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      thead tr { position: absolute; top: -9999px; left: -9999px; }
-      tr {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        background: white;
-        border-radius: 8px;
+    /* Actions buttons container (submit + delete side by side) */
+    .actions-container {
+      display: flex;
+      gap: 10px;
+      flex-wrap: nowrap;
+    }
+    .submit-btn {
+      background: #3498db;
+      flex: 1;
+    }
+    .delete-btn {
+      background: #e74c3c;
+      flex: 1;
+    }
+
+    /* Error styling for inputs */
+    .error {
+      border-color: #e74c3c !important;
+      box-shadow: 0 0 5px #e74c3c88 !important;
+    }
+
+    /* Status select options styling */
+    select.status-select {
+      cursor: pointer;
+    }
+
+    /* Status marker colors legend */
+    #statusLegend {
+      margin-top: 10px;
+      font-size: 14px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      user-select: none;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: #444;
+    }
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid #ccc;
+    }
+    .legend-color.green { background: #2ecc71; }
+    .legend-color.yellow { background: #f1c40f; }
+    .legend-color.red { background: #e74c3c; }
+    .legend-color.gray { background: #7f8c8d; }
+
+    /* Spinner inside buttons */
+    .spinner {
+      margin-left: 8px;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #fff;
+      border-top: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
         padding: 10px;
-        margin-bottom: 12px;
+      }
+      #openMapBtn {
+        width: 100%;
+      }
+      table, thead, tbody, th, td, tr {
+        display: block;
+        width: 100%;
+      }
+      thead tr {
+        display: none;
+      }
+      tr {
+        margin-bottom: 20px;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 10px;
       }
       td {
-        flex: 1 1 45%;
-        padding: 6px;
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
         border: none;
+        border-bottom: 1px solid #eee;
       }
       td::before {
-        position: static;
         content: attr(data-label);
-        font-weight: bold;
-        margin-bottom: 4px;
-        color: #555;
+        position: absolute;
+        left: 10px;
+        top: 12px;
+        font-weight: 700;
+        color: #34495e;
+        width: 45%;
+        white-space: nowrap;
+        text-align: left;
       }
       .road-cell {
-        flex: 1 1 100%;
+        flex-direction: column;
+        align-items: stretch;
       }
-      .actions-container {
-        flex: 1 1 100%;
-        justify-content: space-between;
-        margin-top: 6px;
-      }
-      .actions-container button {
-        flex: 1 1 48%;
+      .road-cell input[type="text"] {
+        width: 100% !important;
+        margin-bottom: 6px;
       }
       .map-button {
-        font-size: 24px;
+        width: 100%;
+        font-size: 22px;
+        padding: 8px 0;
+        border-radius: 6px;
+      }
+      .actions-container {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .submit-btn, .delete-btn {
+        width: 100%;
+        flex: none;
       }
       td img {
         max-width: 100%;
+        height: auto;
+      }
+      input[type="file"] {
+        font-size: 14px;
       }
     }
   </style>
 </head>
 <body>
 
-<h1>Vermont Flood Closures</h1>
-<button id="openMapBtn">🗺 View Fullscreen Map</button>
+<h1>Vermont Road Closures</h1>
+
+<div style="text-align:center;">
+  <button id="openMapBtn">🗺 View Fullscreen Map</button>
+</div>
 
 <div id="mapContainer">
   <div id="mapControls">
     <button id="mapBackToSiteBtn">⬅ Back to Site</button>
+    <div id="statusLegend">
+      <div class="legend-item"><span class="legend-color green"></span> Passable</div>
+      <div class="legend-item"><span class="legend-color yellow"></span> Slightly Washed Out</div>
+      <div class="legend-item"><span class="legend-color red"></span> Impassable</div>
+      <div class="legend-item"><span class="legend-color gray"></span> Unknown</div>
+    </div>
   </div>
   <div id="map"></div>
 </div>
 
 <div id="contentContainer">
-  <input type="text" id="searchTown" placeholder="Search by town name" />
-  <input type="text" id="searchRoad" placeholder="Search by road name" />
+  <input type="text" id="searchTown" placeholder="Search by town name..." />
+  <input type="text" id="searchRoad" placeholder="Search by road name..." />
 
   <table>
     <thead>
@@ -204,211 +360,384 @@
     <tbody id="tableBody"></tbody>
   </table>
 
-  <button id="addRowBtn">➕ Add New Row</button>
+  <button id="addRowBtn">Add New Row</button>
 </div>
 
+<!-- Firebase and Leaflet -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
-  const firebaseConfig = { /* your firebase config here */ };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBEWfWRM6MohRwkGe_tGjCg9D_xwpRE-XU",
+    authDomain: "flood-closures.firebaseapp.com",
+    databaseURL: "https://flood-closures-default-rtdb.firebaseio.com",
+    projectId: "flood-closures",
+    storageBucket: "flood-closures.firebasestorage.app",
+    messagingSenderId: "258849178608",
+    appId: "1:258849178608:web:367e2bd0cc96103b845335"
+  };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const IMGBB_API_KEY = 'dbc72d2ce36090fd55be72eac5cc5147';
-  const map = L.map('map').setView([44, -72.7], 8);
+
+  // DOM elements
+  const tableBody = document.getElementById('tableBody');
+  const mapContainer = document.getElementById('mapContainer');
+  const contentContainer = document.getElementById('contentContainer');
+  const openMapBtn = document.getElementById('openMapBtn');
+  const mapBackBtn = document.getElementById('mapBackToSiteBtn');
+  const searchTown = document.getElementById('searchTown');
+  const searchRoad = document.getElementById('searchRoad');
+
+  // Leaflet map setup
+  const map = L.map('map').setView([44.0, -72.7], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+  // Marker icons for statuses
+  const icons = {
+    passable: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
+    slightly_washed_out: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
+    impassable: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
+    unknown: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/grey-dot.png', iconSize: [32,32], iconAnchor: [16,32]}),
+  };
+
+  // Map of rowId -> Leaflet marker
+  const markers = new Map();
+
+  // Status options for dropdown
   const statusOptions = [
-    { value:'passable', label:'Passable', color:'green' },
-    { value:'washed_out', label:'Washed Out', color:'yellow' },
-    { value:'impassable', label:'Impassable', color:'red' },
-    { value:'unknown', label:'Unknown', color:'gray' }
+    { value: 'passable', label: 'Passable' },
+    { value: 'slightly_washed_out', label: 'Slightly Washed Out' },
+    { value: 'impassable', label: 'Impassable' },
+    { value: 'unknown', label: 'Unknown' },
   ];
-  const markers = new Map(), geocache = new Map();
 
-  function sanitize(s='') { return s.trim(); }
+  // Sanitize text input
+  function sanitize(str) {
+    return (str || '').toString().trim();
+  }
 
-  async function uploadImg(file) {
-    return new Promise((res, rej) => {
-      const fr = new FileReader();
-      fr.onload = () => {
-        const base = fr.result.split(',')[1];
+  // Upload image to imgbb
+  async function uploadToImgBB(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
         fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
           method: 'POST',
-          body: new URLSearchParams({ image: base })
+          body: new URLSearchParams({ image: base64 })
         })
-        .then(r => r.json())
-        .then(j => j.success ? res(j.data.url) : rej('Upload failed'))
-        .catch(rej);
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) resolve(data.data.url);
+            else reject('Upload failed');
+          })
+          .catch(err => reject(err));
       };
-      fr.readAsDataURL(file);
+      reader.readAsDataURL(file);
     });
   }
 
-  async function geocode(town, road) {
-    const key = `${town}|${road}`;
-    if (geocache.has(key)) return geocache.get(key);
-    const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${road}, ${town}, Vermont`)}`);
-    const data = await resp.json();
-    if (!data.length) return null;
-    const loc = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-    geocache.set(key, loc);
-    return loc;
+  // Geocode and place marker
+  async function geocodeAndMark(rowId, town, road, status='unknown') {
+    const query = `${sanitize(road)}, ${sanitize(town)}, Vermont`;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        const latLng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+
+        // Remove old marker if exists
+        if (markers.has(rowId)) {
+          map.removeLayer(markers.get(rowId));
+          markers.delete(rowId);
+        }
+
+        // Choose icon by status
+        const icon = icons[status] || icons.unknown;
+
+        const marker = L.marker(latLng, { icon }).addTo(map);
+        marker.bindPopup(
+          `<b>${sanitize(road)}, ${sanitize(town)}</b><br>Status: ${statusOptions.find(o=>o.value===status)?.label || 'Unknown'}`
+        );
+        markers.set(rowId, marker);
+
+        return latLng;
+      }
+    } catch (e) {
+      console.warn("Geocoding failed for:", query);
+    }
+    return null;
   }
 
-  function createMarker(id, d) {
-    geocode(d.town, d.road).then(loc => {
-      if (!loc) return;
-      if (markers.has(id)) map.removeLayer(markers.get(id));
-      const opt = statusOptions.find(o => o.value === d.status) || statusOptions[3];
-      const icon = L.icon({
-        iconUrl: `https://maps.google.com/mapfiles/ms/icons/${opt.color}-dot.png`,
-        iconSize: [32,32], iconAnchor:[16,32], popupAnchor:[0,-32]
-      });
-      const mk = L.marker(loc, { icon }).addTo(map);
-      let html = `<strong>${d.town} - ${d.road}</strong><br>Status: ${opt.label}`;
-      if (d.imageUrl) html += `<br><img src="${d.imageUrl}" style="max-width:150px;border-radius:4px;">`;
-      if (d.notes) html += `<br><small>${sanitize(d.notes)}</small>`;
-      mk.bindPopup(html);
-      markers.set(id, mk);
+  // Get ISO string for datetime-local input default
+  function getCurrentDatetimeLocal() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  }
+
+  // Create a new table row
+  function createRow(rowId, rowData = {}) {
+    if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
+    const tr = document.createElement('tr');
+    tr.dataset.firebaseKey = rowId;
+
+    // Town input
+    const townInput = document.createElement('input');
+    townInput.type = 'text';
+    townInput.value = rowData.town || '';
+    townInput.placeholder = 'Town name';
+
+    // Road input + map button container
+    const roadCell = document.createElement('td');
+    roadCell.classList.add('road-cell');
+    const roadInput = document.createElement('input');
+    roadInput.type = 'text';
+    roadInput.value = rowData.road || '';
+    roadInput.placeholder = 'Road name';
+
+    const mapBtn = document.createElement('button');
+    mapBtn.type = 'button';
+    mapBtn.className = 'map-button';
+    mapBtn.title = 'Show on map';
+    mapBtn.textContent = '🗺';
+    mapBtn.onclick = async () => {
+      if (!sanitize(townInput.value) || !sanitize(roadInput.value)) {
+        alert('Town and Road must be filled first');
+        return;
+      }
+      contentContainer.style.display = 'none';
+      mapContainer.style.display = 'flex';
+      map.invalidateSize();
+      const latLng = await geocodeAndMark(rowId, townInput.value, roadInput.value, statusSelect.value);
+      if (latLng) {
+        map.setView(latLng, 14);
+        if (markers.has(rowId)) {
+          markers.get(rowId).openPopup();
+        }
+      }
+    };
+    roadCell.appendChild(roadInput);
+    roadCell.appendChild(mapBtn);
+
+    // Image cell
+    const imageCell = document.createElement('td');
+    if (rowData.imageUrl) {
+      const img = document.createElement('img');
+      img.src = rowData.imageUrl;
+      img.alt = "Road closure image";
+      imageCell.appendChild(img);
+    }
+    const imageInput = document.createElement('input');
+    imageInput.type = 'file';
+    imageInput.accept = 'image/*';
+    imageInput.title = "Upload image";
+    imageCell.appendChild(imageInput);
+
+    // Time reported input (datetime-local)
+    const timeInput = document.createElement('input');
+    timeInput.type = 'datetime-local';
+    timeInput.value = rowData.timeReported || getCurrentDatetimeLocal();
+
+    // Reported by input
+    const reportedByInput = document.createElement('input');
+    reportedByInput.type = 'text';
+    reportedByInput.value = rowData.reportedBy || '';
+    reportedByInput.placeholder = 'Reporter name';
+
+    // Status select dropdown
+    const statusSelect = document.createElement('select');
+    statusSelect.className = 'status-select';
+    for (const opt of statusOptions) {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      if (rowData.status === opt.value) option.selected = true;
+      statusSelect.appendChild(option);
+    }
+
+    // Notes input
+    const notesInput = document.createElement('input');
+    notesInput.type = 'text';
+    notesInput.value = rowData.notes || '';
+    notesInput.placeholder = 'Notes';
+
+    // Actions (submit + delete)
+    const actionsCell = document.createElement('td');
+    actionsCell.className = 'actions-container';
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'button';
+    submitBtn.className = 'submit-btn';
+    submitBtn.textContent = rowData.submitted ? 'Update' : 'Submit';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.textContent = 'Delete';
+
+    // Loading spinner
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner';
+    spinner.style.display = 'none';
+    submitBtn.appendChild(spinner);
+
+    // Add all cells to the row
+    tr.appendChild(createCellWithInput(townInput, 'Town Name'));
+    tr.appendChild(roadCell);
+    tr.appendChild(imageCell);
+    tr.appendChild(createCellWithInput(timeInput, 'Time Reported'));
+    tr.appendChild(createCellWithInput(reportedByInput, 'Reported By'));
+    tr.appendChild(createCellWithInput(statusSelect, 'Status'));
+    tr.appendChild(createCellWithInput(notesInput, 'Notes'));
+    actionsCell.appendChild(submitBtn);
+    actionsCell.appendChild(deleteBtn);
+    tr.appendChild(actionsCell);
+
+    // Append row to table body
+    tableBody.appendChild(tr);
+
+    // Delete handler
+    deleteBtn.onclick = () => {
+      if (confirm('Are you sure you want to delete this row?')) {
+        db.ref('closures/' + rowId).remove();
+        if (markers.has(rowId)) {
+          map.removeLayer(markers.get(rowId));
+          markers.delete(rowId);
+        }
+        tr.remove();
+      }
+    };
+
+    // Submit/update handler
+    submitBtn.onclick = async () => {
+      // Disable button + show spinner
+      submitBtn.disabled = true;
+      spinner.style.display = 'inline-block';
+
+      // Validate required fields
+      if (!sanitize(townInput.value) || !sanitize(roadInput.value) || !timeInput.value || !sanitize(reportedByInput.value)) {
+        alert('Please fill out Town, Road, Time Reported, and Reported By fields.');
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+        return;
+      }
+
+      // Upload image if new selected
+      let imageUrl = rowData.imageUrl || '';
+      if (imageInput.files.length > 0) {
+        try {
+          imageUrl = await uploadToImgBB(imageInput.files[0]);
+        } catch (e) {
+          alert('Image upload failed. Please try again.');
+          submitBtn.disabled = false;
+          spinner.style.display = 'none';
+          return;
+        }
+      }
+
+      // Prepare data
+      const dataToSave = {
+        town: sanitize(townInput.value),
+        road: sanitize(roadInput.value),
+        imageUrl,
+        timeReported: timeInput.value,
+        reportedBy: sanitize(reportedByInput.value),
+        status: statusSelect.value,
+        notes: sanitize(notesInput.value),
+        submitted: true
+      };
+
+      // Save to Firebase
+      try {
+        await db.ref('closures/' + rowId).set(dataToSave);
+        submitBtn.textContent = 'Update';
+        submitBtn.appendChild(spinner);
+        // Update marker on map
+        await geocodeAndMark(rowId, dataToSave.town, dataToSave.road, dataToSave.status);
+      } catch (e) {
+        alert('Failed to save data. Please try again.');
+      }
+
+      submitBtn.disabled = false;
+      spinner.style.display = 'none';
+    };
+
+    // On any input change mark row as unsaved (optional)
+    const markUnsaved = () => {
+      if (submitBtn.textContent !== 'Submit') {
+        submitBtn.textContent = 'Update';
+        submitBtn.appendChild(spinner);
+      }
+    };
+    [townInput, roadInput, timeInput, reportedByInput, statusSelect, notesInput].forEach(input => {
+      input.addEventListener('input', markUnsaved);
     });
+    imageInput.addEventListener('change', markUnsaved);
+
+    return tr;
   }
 
-  function wrapLabel(el, lbl) {
+  // Helper: wrap input/select in td with data-label attribute for mobile
+  function createCellWithInput(inputElem, label) {
     const td = document.createElement('td');
-    td.setAttribute('data-label', lbl);
-    if (Array.isArray(el)) el.forEach(e => td.appendChild(e));
-    else td.appendChild(el);
+    td.dataset.label = label;
+    td.appendChild(inputElem);
     return td;
   }
 
-  function createRow(id, d={}) {
-    if (document.querySelector(`tr[data-id="${id}"]`)) return;
-    const tr = document.createElement('tr');
-    tr.dataset.id = id;
-
-    const ti = document.createElement('input'); ti.value=d.town||''; ti.placeholder='Town Name';
-    const ri = document.createElement('input'); ri.value=d.road||''; ri.placeholder='Road Name';
-    const mb = document.createElement('button'); mb.className='map-button'; mb.textContent='🗺';
-    mb.onclick = () => {
-      const mk = markers.get(id);
-      if (mk) {
-        openMap();
-        setTimeout(() => { map.setView(mk.getLatLng(),14); mk.openPopup(); },200);
-      }
-    };
-    const roadC = document.createElement('div'); roadC.className='road-cell';
-    roadC.append(ri, mb);
-
-    const img = document.createElement('img'); img.src=d.imageUrl||'https://via.placeholder.com/150?text=No+Image';
-    const fin = document.createElement('input'); fin.type='file';
-    fin.onchange = () => img.src = URL.createObjectURL(fin.files[0]);
-
-    const tii = document.createElement('input'); tii.type='datetime-local'; tii.value=d.time||new Date().toISOString().slice(0,16);
-    const rep = document.createElement('input'); rep.value=d.reporter||''; rep.placeholder='Reporter';
-
-    const sel = document.createElement('select');
-    statusOptions.forEach(o => {
-      const opt = new Option(o.label, o.value);
-      if (d.status === o.value) opt.selected = true;
-      sel.add(opt);
-    });
-
-    const note = document.createElement('input'); note.value = d.notes||''; note.placeholder='Notes';
-
-    const sb = document.createElement('button'); sb.className='submit-btn'; sb.textContent=d.submitted?'Update':'Submit';
-    const dbtn = document.createElement('button'); dbtn.className='delete-btn'; dbtn.textContent='Delete';
-
-    sb.onclick = async () => {
-      [ti, ri, tii, rep].forEach(i => i.classList.remove('error'));
-      if (![ti, ri, tii, rep].every(i => i.value.trim())) {
-        [ti, ri, tii, rep].forEach(i => { if (!i.value.trim()) i.classList.add('error') });
-        return alert('Fill required fields');
-      }
-      sb.disabled = true;
-      const sp = document.createElement('span'); sp.className='spinner'; sb.append(sp);
-
-      let url = d.imageUrl||'';
-      if (fin.files[0]) {
-        try { url = await uploadImg(fin.files[0]); }
-        catch { return alert('Image upload failed'); }
-      }
-
-      const data = {
-        town: sanitize(ti.value),
-        road: sanitize(ri.value),
-        imageUrl: url,
-        time: tii.value,
-        reporter: sanitize(rep.value),
-        status: sel.value,
-        notes: sanitize(note.value),
-        submitted: true
-      };
-      await db.ref('rows/'+id).set(data);
-      createMarker(id,data);
-      sb.disabled = false;
-      sb.textContent = 'Update';
-    };
-
-    dbtn.onclick = async () => {
-      if (!confirm('Delete this entry?')) return;
-      await db.ref('rows/'+id).remove();
-      markers.get(id)?.remove();
-      tr.remove();
-    };
-
-    tr.append(
-      wrapLabel(ti,'Town Name'),
-      wrapLabel(roadC,'Road Name'),
-      wrapLabel([img,fin],'Image'),
-      wrapLabel(tii,'Time Reported'),
-      wrapLabel(rep,'Reported By'),
-      wrapLabel(sel,'Status'),
-      wrapLabel(note,'Notes'),
-      wrapLabel([sb,dbtn],'Actions')
-    );
-    document.getElementById('tableBody').append(tr);
-    createMarker(id, d);
+  // Add new row with generated key
+  function addNewRow() {
+    const newRef = db.ref('closures').push();
+    createRow(newRef.key, {});
   }
 
-  db.ref('rows').on('child_added', s => createRow(s.key, s.val()));
-  db.ref('rows').on('child_changed', s => {
-    const old = document.querySelector(`tr[data-id="${s.key}"]`);
-    if (old) old.remove();
-    createRow(s.key, s.val());
-  });
-  db.ref('rows').on('child_removed', s => {
-    document.querySelector(`tr[data-id="${s.key}"]`)?.remove();
-    markers.get(s.key)?.remove();
+  // Load data from Firebase and populate table
+  db.ref('closures').on('value', snapshot => {
+    tableBody.innerHTML = '';
+    markers.forEach(m => map.removeLayer(m));
+    markers.clear();
+
+    const data = snapshot.val() || {};
+    for (const key in data) {
+      createRow(key, data[key]);
+    }
   });
 
-  document.getElementById('addRowBtn').onclick = () => {
-    const ref = db.ref('rows').push();
-    createRow(ref.key,{});
-  };
+  // Search filtering
+  function filterTable() {
+    const townFilter = searchTown.value.toLowerCase();
+    const roadFilter = searchRoad.value.toLowerCase();
 
-  document.getElementById('searchTown').addEventListener('input',filter);
-  document.getElementById('searchRoad').addEventListener('input',filter);
-  function filter(){
-    const tf = document.getElementById('searchTown').value.toLowerCase();
-    const rf = document.getElementById('searchRoad').value.toLowerCase();
-    document.querySelectorAll('#tableBody tr').forEach(tr => {
-      const t = tr.querySelector('td[data-label="Town Name"] input').value.toLowerCase();
-      const r = tr.querySelector('td[data-label="Road Name"] input').value.toLowerCase();
-      tr.style.display = (t.includes(tf)&&r.includes(rf))?'':'none';
+    [...tableBody.children].forEach(tr => {
+      const townVal = tr.querySelector('td[data-label="Town Name"] input').value.toLowerCase();
+      const roadVal = tr.querySelector('td.road-cell input').value.toLowerCase();
+
+      const show = townVal.includes(townFilter) && roadVal.includes(roadFilter);
+      tr.style.display = show ? '' : 'none';
     });
   }
 
-  function openMap(){
-    document.getElementById('contentContainer').style.display='none';
-    document.getElementById('mapContainer').style.display='flex';
-    setTimeout(()=>map.invalidateSize(),200);
-  }
-  document.getElementById('openMapBtn').onclick = openMap;
-  document.getElementById('mapBackToSiteBtn').onclick = () => {
-    document.getElementById('mapContainer').style.display='none';
-    document.getElementById('contentContainer').style.display='block';
+  searchTown.addEventListener('input', filterTable);
+  searchRoad.addEventListener('input', filterTable);
+
+  // Map button handlers
+  openMapBtn.onclick = () => {
+    contentContainer.style.display = 'none';
+    mapContainer.style.display = 'flex';
+    map.invalidateSize();
   };
+  mapBackBtn.onclick = () => {
+    mapContainer.style.display = 'none';
+    contentContainer.style.display = '';
+  };
+
+  // Add row button
+  document.getElementById('addRowBtn').onclick = addNewRow;
+
 </script>
 
 </body>
