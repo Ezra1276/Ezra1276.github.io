@@ -16,10 +16,10 @@
       padding: 8px;
       box-sizing: border-box;
     }
-    #searchInput {
+    #searchTown, #searchRoad {
       font-size: 16px;
       padding: 10px;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       width: 100%;
       box-sizing: border-box;
     }
@@ -53,7 +53,8 @@
 
 <h1>Current Road Closures</h1>
 
-<input type="text" id="searchInput" placeholder="Search by town name..." />
+<input type="text" id="searchTown" placeholder="Search by town name..." />
+<input type="text" id="searchRoad" placeholder="Search by road name..." />
 
 <table border="1">
   <thead>
@@ -167,6 +168,16 @@
     submitBtn.textContent = 'Submit';
 
     submitBtn.onclick = async () => {
+      if (
+        !townInput.value.trim() ||
+        !roadInput.value.trim() ||
+        !timeInput.value.trim() ||
+        !reporterInput.value.trim()
+      ) {
+        alert('Please fill out all fields (image optional).');
+        return;
+      }
+
       submitBtn.disabled = true;
       submitBtn.textContent = 'Saving...';
 
@@ -253,19 +264,25 @@
     createRow(newRowRef.key);
   });
 
-  // Search filtering
-  document.getElementById('searchInput').addEventListener('input', function () {
-    const filter = this.value.toLowerCase();
+  function filterRows() {
+    const townFilter = document.getElementById('searchTown').value.toLowerCase();
+    const roadFilter = document.getElementById('searchRoad').value.toLowerCase();
     const rows = tableBody.getElementsByTagName('tr');
-    
+
     Array.from(rows).forEach(row => {
-      const townInput = row.querySelector('td input[type="text"]');
-      if (townInput) {
-        const townName = townInput.value.toLowerCase();
-        row.style.display = townName.includes(filter) ? '' : 'none';
-      }
+      const inputs = row.querySelectorAll('td input[type="text"]');
+      const town = inputs[0]?.value.toLowerCase() || '';
+      const road = inputs[1]?.value.toLowerCase() || '';
+
+      const townMatch = town.includes(townFilter);
+      const roadMatch = road.includes(roadFilter);
+
+      row.style.display = (townMatch && roadMatch) ? '' : 'none';
     });
-  });
+  }
+
+  document.getElementById('searchTown').addEventListener('input', filterRows);
+  document.getElementById('searchRoad').addEventListener('input', filterRows);
 </script>
 
 </body>
