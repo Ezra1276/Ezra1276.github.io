@@ -32,10 +32,6 @@
       display: flex;
       flex-direction: column;
     }
-    #mapContainer #map {
-      flex-grow: 1;
-      width: 100%;
-    }
     #mapControls {
       padding: 10px;
       text-align: center;
@@ -121,12 +117,11 @@
 
 <div style="text-align:center; margin-bottom: 15px;">
   <button id="openMapBtn">🗺 View Fullscreen Map</button>
-  <button id="backBtn" style="display: none;">⬅ Back to Table</button>
 </div>
 
 <div id="mapContainer">
   <div id="mapControls">
-    <button id="mapBackToSiteBtn" style="display:none;">⬅ Back to Site</button>
+    <button id="mapBackToSiteBtn">⬅ Back to Site</button>
   </div>
   <div id="map"></div>
 </div>
@@ -175,30 +170,15 @@
   const tableBody = document.getElementById('tableBody');
   const addRowBtn = document.getElementById('addRowBtn');
   const openMapBtn = document.getElementById('openMapBtn');
-  const backBtn = document.getElementById('backBtn');
   const mapContainer = document.getElementById('mapContainer');
   const contentContainer = document.getElementById('contentContainer');
   const mapBackToSiteBtn = document.getElementById('mapBackToSiteBtn');
 
-  // Vermont bounds approx
-  const vermontBounds = [
-    [42.5, -74.0], // SW
-    [45.3, -71.0]  // NE
-  ];
-
-  // World view coords & zoom (to reset map)
-  const worldView = {
-    center: [20, 0],
-    zoom: 2
-  };
-
-  // Initialize map centered on Vermont with zoom and bounds restrictions
+  // Initialize Leaflet map centered on Vermont, no bounds restrictions
   const map = L.map('map', {
-    maxBounds: vermontBounds,
-    maxBoundsViscosity: 1.0,
-    minZoom: 7,
+    minZoom: 2,
     maxZoom: 18,
-    scrollWheelZoom: false
+    scrollWheelZoom: true
   }).setView([44.0, -72.7], 8);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -212,7 +192,6 @@
     });
   }
 
-  // Cache geocodes to avoid repeat requests
   const geocache = new Map();
 
   async function geocodeAndMark(town, road) {
@@ -234,7 +213,6 @@
     }
   }
 
-  // ImgBB upload helper
   async function uploadToImgBB(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -252,14 +230,12 @@
     });
   }
 
-  // Get current local datetime in ISO format for datetime-local input
   function getCurrentDatetimeLocal() {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   }
 
-  // Create table row UI
   function createRow(rowId, rowData = {}) {
     if (document.querySelector(`tr[data-firebase-key="${rowId}"]`)) return;
 
@@ -352,20 +328,17 @@
     tableBody.appendChild(tr);
   }
 
-  // Firebase child_added handler
   db.ref('rows').on('child_added', snapshot => {
     const data = snapshot.val();
     createRow(snapshot.key, data);
     if (data.town && data.road) geocodeAndMark(data.town, data.road);
   });
 
-  // Add new row button
   addRowBtn.onclick = () => {
     const newRef = db.ref('rows').push();
     createRow(newRef.key);
   };
 
-  // Search filtering
   document.getElementById('searchTown').addEventListener('input', filterRows);
   document.getElementById('searchRoad').addEventListener('input', filterRows);
 
@@ -379,47 +352,17 @@
     });
   }
 
-  // Show map container, hide content
   openMapBtn.onclick = () => {
     mapContainer.style.display = 'flex';
     contentContainer.style.display = 'none';
-    backBtn.style.display = 'none'; // hide old back button
-    openMapBtn.style.display = 'none';
-    mapBackToSiteBtn.style.display = 'none'; // hidden initially
     setTimeout(() => map.invalidateSize(), 200);
     map.setView([44.0, -72.7], 8);
-    map.setMaxBounds(vermontBounds);
-    map.setMinZoom(7);
   };
 
-  // Back to site button in map header (shown only in world view)
   mapBackToSiteBtn.onclick = () => {
     mapContainer.style.display = 'none';
     contentContainer.style.display = 'block';
-    openMapBtn.style.display = 'inline-block';
-    mapBackToSiteBtn.style.display = 'none';
   };
-
-  // Listen for zoom end to detect zoom out past Vermont minZoom
-  map.on('zoomend', () => {
-    if (map.getZoom() < 7) {
-      // User zoomed out beyond Vermont minimum zoom,
-      // reset map to world view and remove bounds restriction
-      map.setView(worldView.center, worldView.zoom);
-      map.setMaxBounds(null);
-      map.setMinZoom(2);
-      mapBackToSiteBtn.style.display = 'inline-block';
-    } else {
-      // Restore Vermont bounds and minZoom when zoomed in
-      map.setMaxBounds(vermontBounds);
-      map.setMinZoom(7);
-      mapBackToSiteBtn.style.display = 'none';
-    }
-  });
-
-  // Old back button hides content, so hide it always
-  backBtn.onclick = () => {}; // disabled
-
 </script>
 </body>
 </html>
